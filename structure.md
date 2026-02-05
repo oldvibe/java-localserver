@@ -1,3 +1,4 @@
+```
 localserver/
 ├── src/
 │   ├── Main.java                # Application entry point
@@ -31,3 +32,4 @@ localserver/
 │   ├── ErrorTests.java
 │   └── StressTests.md
 └── README.md
+```
