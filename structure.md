@@ -12,6 +12,7 @@ localserver/
 │   ├── CGIHandler.java          # CGI execution logic
 │   ├── ConfigLoader.java        # Configuration file parsing
 │   ├── ErrorHandler.java        # Error response generation
+|   ├── HttpRequest.java
 │   └── utils/
 │       ├── SessionManager.java  # Session handling
 │       ├── CookieUtils.java     # Cookie parsing and creation
