@@ -25,7 +25,6 @@ public class ConfigLoader {
             Config.ServerConfig sc = new Config.ServerConfig();
             sc.host = getString(block, "host");
             sc.ports = getIntList(block, "ports");
-            sc.isDefault = getBoolean(block, "default");
             sc.clientBodySizeLimit = getLong(block, "client_body_size_limit");
             
             int routesIndex = block.indexOf("\"routes\"");

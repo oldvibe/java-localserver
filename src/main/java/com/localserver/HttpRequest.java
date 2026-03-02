@@ -12,13 +12,11 @@ public class HttpRequest {
     private Map<String, String> headers = new HashMap<>();
     private Map<String, String> cookies = new HashMap<>();
     private byte[] body;
-    // private boolean isComplete = false;
 
     private java.io.ByteArrayOutputStream rawData = new java.io.ByteArrayOutputStream();
     private boolean headersParsed = false;
     private int contentLength = -1;
     private boolean isChunked = false;
-    // private int currentChunkSize = -1;
     private java.io.ByteArrayOutputStream bodyCollector = new java.io.ByteArrayOutputStream();
 
     public boolean appendData(byte[] data, long limit) {
