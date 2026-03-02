@@ -40,6 +40,7 @@ public class ConfigLoader {
                         rc.root = getString(rBlock, "root");
                         rc.index = getString(rBlock, "index");
                         rc.listing = getBoolean(rBlock, "listing");
+                        rc.redirection = getString(rBlock, "redirection");
                         
                         int cgiIndex = rBlock.indexOf("\"cgi\"");
                         if (cgiIndex != -1) {

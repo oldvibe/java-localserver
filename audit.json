@@ -2,20 +2,13 @@
   "servers": [
     {
       "host": "127.0.0.1",
-      "ports": [8080, 8081],
+      "ports": [8080],
       "default": true,
       "error_pages": {
         "404": "error_pages/404.html"
       },
-      "client_body_size_limit": 1000000,
+      "client_body_size_limit": 1048576,
       "routes": [
-        {
-          "path": "/",
-          "methods": ["GET"],
-          "root": "www",
-          "index": "index.html",
-          "listing": true
-        },
         {
           "path": "/ok",
           "methods": ["GET"],
@@ -23,24 +16,23 @@
           "index": "index.html"
         },
         {
-          "path": "/test_dir",
-          "methods": ["GET"],
-          "root": "www",
+          "path": "/uploads",
+          "methods": ["GET", "POST", "DELETE"],
+          "root": "www/uploads",
           "listing": true
+        },
+        {
+          "path": "/temp",
+          "methods": ["GET"],
+          "redirection": "https://example.com"
         },
         {
           "path": "/cgi-bin",
           "methods": ["GET", "POST"],
           "root": "cgi-bin",
           "cgi": {
-            ".py": "/usr/bin/python3",
-            ".sh": "/usr/bin/bash"
+            ".py": "/usr/bin/python3"
           }
-        },
-        {
-          "path": "/metrics",
-          "methods": ["GET"],
-          "root": "www"
         }
       ]
     },

@@ -5,7 +5,8 @@ A high-performance, single-threaded, event-driven HTTP/1.1 server built from scr
 ## 🚀 Quick Start
 1.  **Build:** `./mvnw package`
 2.  **Run:** `java -jar target/java-localserver-1.0-SNAPSHOT.jar`
-3.  **Test:** `curl -v http://localhost:8080/`
+3.  **Test:** `make test`
+4.  **Complex Test (includes large files, CGI, & more):** `make complex-test`
 
 ---
 
