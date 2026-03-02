@@ -46,21 +46,24 @@ public class Server {
         while (true) {
             int readyChannels = selector.select(1000); // Wait up to 1 second
             
-            // Check for timeouts
-            long timeoutLimit = 30000; // 30 seconds
-            for (SelectionKey key : selector.keys()) {
-                if (key.isValid() && key.attachment() instanceof ConnectionState) {
-                    ConnectionState state = (ConnectionState) key.attachment();
-                    if (state.isTimedOut(timeoutLimit)) {
-                        System.out.println("Closing timed out connection");
-                        com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-                        try { key.channel().close(); } catch (IOException ignored) {}
-                        key.cancel();
+            if (readyChannels == 0) {
+                // Check for timeouts only when idle
+                long timeoutLimit = 60000;
+                Iterator<SelectionKey> allKeys = selector.keys().iterator();
+                while (allKeys.hasNext()) {
+                    SelectionKey key = allKeys.next();
+                    if (key.isValid() && key.attachment() instanceof ConnectionState) {
+                        ConnectionState state = (ConnectionState) key.attachment();
+                        if (state.isTimedOut(timeoutLimit)) {
+                            System.out.println("Closing timed out connection");
+                            com.localserver.utils.Metrics.activeConnections.decrementAndGet();
+                            try { key.channel().close(); } catch (IOException ignored) {}
+                            key.cancel();
+                        }
                     }
                 }
+                continue;
             }
-
-            if (readyChannels == 0) continue;
 
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
             Iterator<SelectionKey> iter = selectedKeys.iterator();
@@ -111,6 +114,8 @@ public class Server {
         java.util.List<Router> routers;
         Router selectedRouter;
         HttpResponse response;
+        java.nio.ByteBuffer headerBuffer;
+        java.nio.ByteBuffer bodyBuffer;
         long lastActivity;
 
         ConnectionState(HttpRequest request, java.util.List<Router> routers) {
@@ -151,9 +156,9 @@ public class Server {
             if (state.request.appendData(data, 10000000)) {
                 // If router not selected yet, find it based on Host header
                 if (state.selectedRouter == null) {
-                    String host = state.request.getHeaders().getOrDefault("Host", "").split(":")[0];
+                    String host = state.request.getHeaders().getOrDefault("Host", "").split(":")[0].trim();
                     for (Router r : state.routers) {
-                        if (r.getServerConfig().host.equals(host)) {
+                        if (r.getServerConfig().host.equalsIgnoreCase(host)) {
                             state.selectedRouter = r;
                             break;
                         }
@@ -186,13 +191,39 @@ public class Server {
 
         if (state.response != null) {
             try {
-                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(state.response.getBytes());
-                clientChannel.write(buffer);
-                com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-                clientChannel.close();
+                if (state.headerBuffer == null) {
+                    state.headerBuffer = java.nio.ByteBuffer.wrap(state.response.getHeaderBytes());
+                    byte[] body = state.response.getBody();
+                    if (body != null) {
+                        state.bodyBuffer = java.nio.ByteBuffer.wrap(body);
+                    }
+                }
+                
+                if (state.headerBuffer.hasRemaining()) {
+                    while (state.headerBuffer.hasRemaining()) {
+                        if (clientChannel.write(state.headerBuffer) == 0) return;
+                    }
+                }
+
+                if (state.bodyBuffer != null && state.bodyBuffer.hasRemaining()) {
+                    while (state.bodyBuffer.hasRemaining()) {
+                        int written = clientChannel.write(state.bodyBuffer);
+                        if (written == 0) {
+                            return; // Buffer full, wait for next OP_WRITE
+                        }
+                    }
+                }
+
+                if (!state.headerBuffer.hasRemaining() && (state.bodyBuffer == null || !state.bodyBuffer.hasRemaining())) {
+                    System.out.println("Response fully sent. Closing connection.");
+                    com.localserver.utils.Metrics.activeConnections.decrementAndGet();
+                    key.cancel();
+                    clientChannel.close();
+                }
             } catch (IOException e) {
                 com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-                try { clientChannel.close(); } catch (IOException ignored) {}
+                try { key.channel().close(); } catch (IOException ignored) {}
+                key.cancel();
             }
         }
     }

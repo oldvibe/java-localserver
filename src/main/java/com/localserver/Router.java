@@ -42,15 +42,20 @@ public class Router {
             return errorResponse(405, "Method Not Allowed");
         }
 
+        // Calculate local path relative to route root
+        String relativePath = request.getPath().substring(route.path.length());
+        if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+        String localPath = route.root + (route.root.endsWith("/") || relativePath.isEmpty() ? "" : "/") + relativePath;
+
         // Check for CGI
         for (String ext : route.cgi.keySet()) {
             if (request.getPath().endsWith(ext)) {
-                return CGIHandler.execute(request, route.root + request.getPath(), route.cgi.get(ext));
+                return CGIHandler.execute(request, localPath, route.cgi.get(ext));
             }
         }
 
         if (request.getMethod().equals("DELETE")) {
-            return handleDelete(route.root + request.getPath());
+            return handleDelete(localPath);
         }
 
         if (request.getMethod().equals("POST")) {
@@ -58,7 +63,6 @@ public class Router {
         }
 
         // Handle static files
-        String localPath = route.root + request.getPath();
         File file = new File(localPath);
 
         if (file.isDirectory()) {
@@ -99,12 +103,18 @@ public class Router {
         String contentType = request.getHeaders().getOrDefault("Content-Type", "");
         if (contentType.contains("multipart/form-data")) {
             String boundary = contentType.substring(contentType.indexOf("boundary=") + 9);
-            return handleMultipartUpload(request, route, boundary);
+            
+            // Calculate upload directory from route
+            String relativePath = request.getPath().substring(route.path.length());
+            if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+            String uploadDir = route.root + (route.root.endsWith("/") || relativePath.isEmpty() ? "" : "/") + relativePath;
+
+            return handleMultipartUpload(request, uploadDir, boundary);
         }
         return errorResponse(201, "Created");
     }
 
-    private HttpResponse handleMultipartUpload(HttpRequest request, Config.RouteConfig route, String boundary) {
+    private HttpResponse handleMultipartUpload(HttpRequest request, String uploadDir, String boundary) {
         byte[] body = request.getBody();
         if (body == null) return errorResponse(400, "Bad Request: No Body");
 
@@ -119,7 +129,7 @@ public class Router {
             if (nextBoundary == -1) break;
             
             byte[] part = java.util.Arrays.copyOfRange(body, start + boundaryBytes.length, nextBoundary);
-            processPart(part, route);
+            processPart(part, uploadDir);
             lastPos = nextBoundary;
         }
         
@@ -129,7 +139,7 @@ public class Router {
         return response;
     }
 
-    private void processPart(byte[] part, Config.RouteConfig route) {
+    private void processPart(byte[] part, String uploadDir) {
         int headerEnd = -1;
         for (int i = 0; i < part.length - 3; i++) {
             if (part[i] == '\r' && part[i+1] == '\n' && part[i+2] == '\r' && part[i+3] == '\n') {
@@ -147,7 +157,9 @@ public class Router {
             
             byte[] content = java.util.Arrays.copyOfRange(part, headerEnd + 4, part.length - 2); // -2 for trailing CRLF
             try {
-                Files.write(new File(route.root, filename).toPath(), content);
+                File dir = new File(uploadDir);
+                if (!dir.exists()) dir.mkdirs();
+                Files.write(new File(dir, filename).toPath(), content);
             } catch (IOException e) {
                 e.printStackTrace();
             }

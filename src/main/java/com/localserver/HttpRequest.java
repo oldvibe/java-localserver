@@ -51,17 +51,19 @@ public class HttpRequest {
         }
 
         if (headersParsed) {
+            byte[] currentRaw = rawData.toByteArray();
+            int headerEnd = findHeaderEnd(currentRaw);
+            int bodyStart = headerEnd + 4;
+
             if (isChunked) {
-                return parseChunked();
+                return parseChunked(currentRaw, bodyStart);
             }
             if (contentLength == 0) return true;
             if (contentLength > 0) {
-                byte[] currentRaw = rawData.toByteArray();
-                int headerEnd = findHeaderEnd(currentRaw);
-                int bodyReceived = currentRaw.length - (headerEnd + 4);
+                int bodyReceived = currentRaw.length - bodyStart;
                 if (bodyReceived >= contentLength) {
                     body = new byte[contentLength];
-                    System.arraycopy(currentRaw, headerEnd + 4, body, 0, contentLength);
+                    System.arraycopy(currentRaw, bodyStart, body, 0, contentLength);
                     return true;
                 }
             }
@@ -70,15 +72,9 @@ public class HttpRequest {
         return false;
     }
 
-    private boolean parseChunked() {
-        byte[] currentRaw = rawData.toByteArray();
-        int headerEnd = findHeaderEnd(currentRaw);
-        int offset = headerEnd + 4;
-        
-        // We need a way to track how much of rawData we've already processed for chunks
-        // For simplicity in this implementation, we'll re-parse from the start of the body
+    private boolean parseChunked(byte[] currentRaw, int bodyStart) {
         bodyCollector.reset();
-        int pos = offset;
+        int pos = bodyStart;
         
         while (pos < currentRaw.length) {
             int lineEnd = -1;
@@ -91,19 +87,23 @@ public class HttpRequest {
             
             if (lineEnd == -1) return false; // Incomplete chunk size line
             
-            String sizeHex = new String(currentRaw, pos, lineEnd - pos).split(";")[0].trim();
-            int chunkSize = Integer.parseInt(sizeHex, 16);
-            
-            if (chunkSize == 0) {
-                this.body = bodyCollector.toByteArray();
-                return true;
+            try {
+                String sizeHex = new String(currentRaw, pos, lineEnd - pos).split(";")[0].trim();
+                int chunkSize = Integer.parseInt(sizeHex, 16);
+                
+                if (chunkSize == 0) {
+                    this.body = bodyCollector.toByteArray();
+                    return true;
+                }
+                
+                int chunkDataStart = lineEnd + 2;
+                if (currentRaw.length < chunkDataStart + chunkSize + 2) return false; // Incomplete chunk data
+                
+                bodyCollector.write(currentRaw, chunkDataStart, chunkSize);
+                pos = chunkDataStart + chunkSize + 2; // Move past data + \r\n
+            } catch (NumberFormatException e) {
+                return false;
             }
-            
-            int chunkDataStart = lineEnd + 2;
-            if (currentRaw.length < chunkDataStart + chunkSize + 2) return false; // Incomplete chunk data
-            
-            bodyCollector.write(currentRaw, chunkDataStart, chunkSize);
-            pos = chunkDataStart + chunkSize + 2; // Move past data + \r\n
         }
         
         return false;

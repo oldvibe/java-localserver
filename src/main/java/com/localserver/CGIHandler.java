@@ -47,8 +47,33 @@ public class CGIHandler {
             }
             
             HttpResponse response = new HttpResponse();
-            // In a real CGI, the script should provide headers. For now, we assume the output is the body.
-            response.setBody(output);
+            
+            // Simple header parsing
+            String outputStr = new String(output);
+            int headerEnd = -1;
+            int separatorLen = 0;
+            
+            if (outputStr.contains("\r\n\r\n")) {
+                headerEnd = outputStr.indexOf("\r\n\r\n");
+                separatorLen = 4;
+            } else if (outputStr.contains("\n\n")) {
+                headerEnd = outputStr.indexOf("\n\n");
+                separatorLen = 2;
+            }
+
+            if (headerEnd != -1) {
+                String headerPart = outputStr.substring(0, headerEnd);
+                for (String line : headerPart.split("\r?\n")) {
+                    if (line.toLowerCase().contains("content-type:")) {
+                        String contentType = line.split(":")[1].trim();
+                        response.setHeader("Content-Type", contentType);
+                    }
+                }
+                byte[] bodyOnly = java.util.Arrays.copyOfRange(output, headerEnd + separatorLen, output.length);
+                response.setBody(bodyOnly);
+            } else {
+                response.setBody(output);
+            }
             return response;
             
         } catch (Exception e) {

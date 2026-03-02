@@ -41,6 +41,23 @@ public class HttpResponse {
         setHeader("Content-Length", String.valueOf(this.body.length));
     }
 
+    public byte[] getHeaderBytes() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("HTTP/1.1 ").append(statusCode).append(" ").append(statusMessage).append("\r\n");
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
+        }
+        for (Cookie cookie : cookies) {
+            sb.append("Set-Cookie: ").append(cookie.toString()).append("\r\n");
+        }
+        sb.append("\r\n");
+        return sb.toString().getBytes();
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
     public byte[] getBytes() {
         StringBuilder sb = new StringBuilder();
         sb.append("HTTP/1.1 ").append(statusCode).append(" ").append(statusMessage).append("\r\n");
