@@ -1,8 +1,10 @@
 # Maven Wrapper (./mvnw) is now used for all build and run commands.
 
-.PHONY: all compile package run clean test audit-test external-test complex-test
+.PHONY: all compile package run clean test audit-test external-test complex-test re
 
-all: compile
+all: package
+
+re: clean all
 
 compile:
 	./mvnw compile
