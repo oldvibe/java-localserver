@@ -1,35 +1,21 @@
-# Variables
-JAVAC = javac
-JAVA = java
-SRC_DIR = src
-BIN_DIR = bin
-MAIN_CLASS = src.Main
-CONFIG = config.json
+# Maven Wrapper (./mvnw) is now used for all build and run commands.
 
-# Find all Java files
-SRCS = $(shell find $(SRC_DIR) -name "*.java")
+.PHONY: all compile package run clean test
 
-# Default target
 all: compile
 
-# Compile everything
 compile:
-	@mkdir -p $(BIN_DIR)
-	$(JAVAC) -d $(BIN_DIR) $(SRCS)
-	@echo "Compilation successful."
+	./mvnw compile
 
-# Run the server
-run: compile
-	$(JAVA) -cp $(BIN_DIR) $(MAIN_CLASS) $(CONFIG)
+package:
+	./mvnw package
 
-# Clean build artifacts
+run:
+	./mvnw exec:java -Dexec.mainClass="com.localserver.Main" -Dexec.args="config.json"
+
 clean:
-	rm -rf $(BIN_DIR)
-	@echo "Cleaned up."
+	./mvnw clean
 
-# Quick test with curl
 test:
 	curl -v http://localhost:8080/
 	curl -v http://localhost:8080/metrics
-
-.PHONY: all compile run clean test

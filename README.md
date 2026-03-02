@@ -3,9 +3,22 @@
 A high-performance, single-threaded, event-driven HTTP/1.1 server built from scratch using Java NIO.
 
 ## 🚀 Quick Start
-1.  **Compile:** `make`
-2.  **Run:** `make run`
-3.  **Test:** `make test`
+1.  **Build:** `./mvnw package`
+2.  **Run:** `java -jar target/java-localserver-1.0-SNAPSHOT.jar`
+3.  **Test:** `curl -v http://localhost:8080/`
+
+---
+
+## 🏗️ Project Structure (Maven)
+- `src/main/java/com/localserver/`: Core Java source code.
+    - `com.localserver.utils/`: Utility classes (Metrics, Cookie, Session).
+- `src/main/resources/`: (Optional) Bundled resources.
+- `www/`: Static web content (HTML, Images).
+- `cgi-bin/`: Scripts for dynamic content.
+- `error_pages/`: Custom HTML error pages.
+- `config.json`: Server configuration file.
+- `pom.xml`: Maven project definition.
+- `Makefile`: Convenient aliases for Maven commands.
 
 ---
 
