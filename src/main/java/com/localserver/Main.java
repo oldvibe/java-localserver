@@ -10,34 +10,40 @@ public class Main {
     private static final Logger log = Logger.getLogger(Main.class);
 
     public static void main(String[] args) {
-        System.out.println("LocalServer starting...");
         Logger.enableFileLogging("server.log");
+        log.info("Server is starting...");
 
-        // log.debug("Debug message — details internes");
-        // log.info("Server is starting...");
-        // log.warn("This is a warning");
-        // log.error("Something went wrong");
 
-        // // Test avec une exception
         // try {
-        //     int result = 10 / 0;
-        // } catch (Exception e) {
-        //     log.error("Division by zero caught", e);
+        //     List<ConfigLoader.ServerConfig> configs =
+        //         ConfigLoader.load("src/main/resources/config/server.conf");
+
+        //     // Afficher ce qui a ete charge
+        //     for (ConfigLoader.ServerConfig server : configs) {
+        //         log.info("Loaded server: " + server);
+        //     }
+
+        // } catch (IOException e) {
+        //     log.error("Failed to load config", e);
+        // } catch (IllegalStateException e) {
+        //     log.error("Invalid config: " + e.getMessage());
         // }
 
         try {
             List<ConfigLoader.ServerConfig> configs =
                 ConfigLoader.load("src/main/resources/config/server.conf");
 
-            // Afficher ce qui a ete charge
-            for (ConfigLoader.ServerConfig server : configs) {
-                log.info("Loaded server: " + server);
-            }
+            // Pour l'instant on lance seulement le premier serveur
+            Server server = new Server(configs.get(0));
+
+            // Arret propre quand on fait Ctrl+C
+            Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+
+            server.start(); // bloque ici — c'est l'event loop
 
         } catch (IOException e) {
-            log.error("Failed to load config", e);
-        } catch (IllegalStateException e) {
-            log.error("Invalid config: " + e.getMessage());
+            log.error("Fatal error", e);
+            System.exit(1);
         }
     }
 }

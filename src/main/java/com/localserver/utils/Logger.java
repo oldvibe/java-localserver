@@ -70,7 +70,7 @@ public class Logger {
     public void error(String message, Throwable t) {
         log(Level.ERROR, message + " — " + t.getMessage());
         // Affiche le stack trace complet pour les erreurs
-        t.printStackTrace(System.err);
+        t.printStackTrace(System.out);
         if (fileWriter != null) t.printStackTrace(fileWriter);
     }
 
@@ -79,17 +79,13 @@ public class Logger {
 
         String timestamp = LocalDateTime.now().format(FORMATTER);
         String line = String.format("[%s] [%-5s] [%s] %s",
-            timestamp,   // 2025-02-26 14:32:01
-            level,       // INFO / WARN / ERROR / DEBUG
-            className,   // Server / ConnectionHandler / etc.
+            timestamp,   
+            level,     
+            className,   // Server / ConnectionHandler / ...
             message
         );
 
-        if (level == Level.ERROR || level == Level.WARN) {
-            System.err.println(line);
-        } else {
-            System.out.println(line);
-        }
+        System.out.println(line);
 
         if (fileWriter != null) {
             fileWriter.println(line);
