@@ -119,7 +119,8 @@ code="$(curl -sS -o "$TEST_BODY" -w "%{http_code}" --noproxy '*' http://127.0.0.
 [[ "$code" == "200" ]] || fail "Directory listing expected 200 got $code"
 pass "Directory listing works"
 
-location="$(curl -sS -I --noproxy '*' http://127.0.0.1:8080/temp | tr -d '' | sed -n 's/^Location: //p' | head -n1)"
+location="$(curl -sS -I --noproxy '*' http://127.0.0.1:8080/temp | tr -d '
+' | sed -n 's/^Location: //p' | head -n1)"
 [[ "$location" == "https://example.com" ]] || fail "Redirect Location mismatch: got '$location' expected 'https://example.com'"
 pass "Redirect works"
 
@@ -136,10 +137,13 @@ main_body="$(curl -sS --noproxy '*' -H "Host: test.com" http://127.0.0.1:8080/)"
 [[ "$main_body" == *"Servex Home"* ]] || fail "Virtual host main response mismatch"
 pass "Hostname virtual host works"
 
-cookie_header="$(curl -sS -I --noproxy '*' http://127.0.0.1:8080/ok | tr -d '' | sed -n 's/^Set-Cookie: //p' | head -n1)"
+cookie_header="$(curl -sS -I --noproxy '*' http://127.0.0.1:8080/ok | tr -d '
+' | sed -n 's/^Set-Cookie: //p' | head -n1)"
 # My server doesn't set session cookie by default yet, but let's check if it exists if implemented
 # For now, if your logic doesn't have it, we might skip or fix the server.
 # [[ "$cookie_header" == *"LOCALSERVER_SESSION="* ]] || fail "Session cookie missing"
 # pass "Session cookie is set"
 
 echo "All audit checks passed."
+
+ 
