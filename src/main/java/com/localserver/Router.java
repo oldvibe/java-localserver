@@ -18,85 +18,107 @@ public class Router {
     public HttpResponse handle(HttpRequest request) {
         com.localserver.utils.Metrics.totalRequests.incrementAndGet();
         
+        // 1. Strict Host header check for HTTP/1.1
+        if ("HTTP/1.1".equals(request.getVersion()) && !request.getHeaders().containsKey("Host")) {
+            return errorResponse(400, "Bad Request: Missing Host Header");
+        }
+
+        // 2. Path Traversal Protection
+        if (request.getPath().contains("..")) {
+            return errorResponse(403, "Forbidden: Path traversal not allowed");
+        }
+
+        // 3. Session Handling
+        String sessionId = request.getCookies().get("LOCALSERVER_SESSION");
+        com.localserver.utils.Session session = com.localserver.utils.Session.getOrCreate(sessionId);
+        HttpResponse response = null;
+
         if (request.getPath().equals("/metrics")) {
-            HttpResponse response = new HttpResponse();
+            response = new HttpResponse();
             response.setHeader("Content-Type", "application/json");
             response.setBody(com.localserver.utils.Metrics.getJson());
-            return response;
         }
 
-        Config.RouteConfig route = findRoute(request.getPath());
-        
-        if (route == null) {
-            return errorResponse(404, "Not Found");
-        }
-
-        if (route.redirection != null) {
-            HttpResponse response = new HttpResponse();
-            response.setStatusCode(301, "Moved Permanently");
-            response.setHeader("Location", route.redirection);
-            return response;
-        }
-
-        if (!route.methods.contains(request.getMethod())) {
-            return errorResponse(405, "Method Not Allowed");
-        }
-
-        // Calculate local path relative to route root
-        String relativePath = request.getPath().substring(route.path.length());
-        if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
-        String localPath = route.root + (route.root.endsWith("/") || relativePath.isEmpty() ? "" : "/") + relativePath;
-
-        // Check for CGI
-        for (String ext : route.cgi.keySet()) {
-            if (request.getPath().endsWith(ext)) {
-                return CGIHandler.execute(request, localPath, route.cgi.get(ext));
-            }
-        }
-
-        if (request.getMethod().equals("DELETE")) {
-            return handleDelete(localPath);
-        }
-
-        if (request.getMethod().equals("POST")) {
-            return handlePost(request, route);
-        }
-
-        // Handle static files
-        File file = new File(localPath);
-
-        if (file.isDirectory()) {
-            if (route.index != null) {
-                File indexFile = new File(file, route.index);
-                if (indexFile.exists() && indexFile.isFile()) {
-                    file = indexFile;
-                } else if (route.listing) {
-                    return directoryListing(file, request.getPath());
-                } else {
-                    return errorResponse(403, "Forbidden");
-                }
-            } else if (route.listing) {
-                return directoryListing(file, request.getPath());
+        if (response == null) {
+            Config.RouteConfig route = findRoute(request.getPath());
+            
+            if (route == null) {
+                response = errorResponse(404, "Not Found");
+            } else if (route.redirection != null) {
+                response = new HttpResponse();
+                response.setStatusCode(301, "Moved Permanently");
+                response.setHeader("Location", route.redirection);
+            } else if (!route.methods.contains(request.getMethod())) {
+                response = errorResponse(405, "Method Not Allowed");
             } else {
-                return errorResponse(403, "Forbidden");
+                // Calculate local path relative to route root
+                String relativePath = request.getPath().substring(route.path.length());
+                if (relativePath.startsWith("/")) relativePath = relativePath.substring(1);
+                String localPath = route.root + (route.root.endsWith("/") || relativePath.isEmpty() ? "" : "/") + relativePath;
+
+                // Check for CGI
+                boolean handledByCGI = false;
+                for (String ext : route.cgi.keySet()) {
+                    if (request.getPath().endsWith(ext)) {
+                        response = CGIHandler.execute(request, localPath, route.cgi.get(ext));
+                        handledByCGI = true;
+                        break;
+                    }
+                }
+
+                if (!handledByCGI) {
+                    if (request.getMethod().equals("DELETE")) {
+                        response = handleDelete(localPath);
+                    } else if (request.getMethod().equals("POST")) {
+                        response = handlePost(request, route);
+                    } else {
+                        // Handle static files
+                        File file = new File(localPath);
+
+                        if (file.isDirectory()) {
+                            if (route.index != null) {
+                                File indexFile = new File(file, route.index);
+                                if (indexFile.exists() && indexFile.isFile()) {
+                                    file = indexFile;
+                                } else if (route.listing) {
+                                    response = directoryListing(file, request.getPath());
+                                } else {
+                                    response = errorResponse(403, "Forbidden");
+                                }
+                            } else if (route.listing) {
+                                response = directoryListing(file, request.getPath());
+                            } else {
+                                response = errorResponse(403, "Forbidden");
+                            }
+                        }
+
+                        if (response == null) {
+                            if (file.exists() && file.isFile()) {
+                                try {
+                                    byte[] content = Files.readAllBytes(file.toPath());
+                                    response = new HttpResponse();
+                                    response.setBody(content);
+                                    // Simple mime-type detection
+                                    if (file.getName().endsWith(".html")) response.setHeader("Content-Type", "text/html");
+                                    else if (file.getName().endsWith(".jpg")) response.setHeader("Content-Type", "image/jpeg");
+                                } catch (IOException e) {
+                                    response = errorResponse(500, "Internal Server Error");
+                                }
+                            } else {
+                                response = errorResponse(404, "Not Found");
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        if (file.exists() && file.isFile()) {
-            try {
-                byte[] content = Files.readAllBytes(file.toPath());
-                HttpResponse response = new HttpResponse();
-                response.setBody(content);
-                // Simple mime-type detection
-                if (file.getName().endsWith(".html")) response.setHeader("Content-Type", "text/html");
-                else if (file.getName().endsWith(".jpg")) response.setHeader("Content-Type", "image/jpeg");
-                return response;
-            } catch (IOException e) {
-                return errorResponse(500, "Internal Server Error");
-            }
+        // Add session cookie if newly created or if we want to ensure it's there
+        if (sessionId == null || !sessionId.equals(session.getId())) {
+            response.addCookie(new com.localserver.utils.Cookie("LOCALSERVER_SESSION", session.getId()));
         }
 
-        return errorResponse(404, "Not Found");
+        return response;
     }
 
     private HttpResponse handlePost(HttpRequest request, Config.RouteConfig route) {
