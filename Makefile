@@ -46,8 +46,8 @@ external-test: setup-test-assets
 	PID=$$!; \
 	echo "Waiting for server to start (PID: $$PID)..."; \
 	for i in {1..40}; do if curl -s http://localhost:8080/ok >/dev/null; then break; fi; sleep 0.25; done; \
-	chmod +x external-test.sh; \
-	HOST=127.0.0.1 ./external-test.sh; \
+	chmod +x scripts/external-test.sh; \
+	HOST=127.0.0.1 ./scripts/external-test.sh; \
 	RET=$$?; \
 	kill -9 $$PID 2>/dev/null || true; \
 	exit $$RET; \
@@ -106,8 +106,8 @@ complex-test: setup-test-assets
 	}
 
 audit-test:
-	@chmod +x audit-test.sh
-	@./audit-test.sh
+	@chmod +x scripts/audit-test.sh
+	@./scripts/audit-test.sh
 
 clean-test-assets:
 	rm -rf www/large-test/
