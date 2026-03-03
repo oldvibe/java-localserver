@@ -24,3 +24,21 @@ Key classes: Selector, ServerSocketChannel, SocketChannel, SelectionKey, ByteBuf
 Your server spawns a subprocess (Python script, etc.) via ProcessBuilder, passes the request body via stdin, reads the response from stdout. Environment variables like PATH_INFO, REQUEST_METHOD, CONTENT_LENGTH carry request metadata.
 5. Configuration Parsing
 Your server.conf defines virtual servers, routes, limits. You parse it once at startup, validate it, and use it as the runtime source of truth for every decision.
+
+
+```
+Server (event loop)
+    │
+    ├── Client 1 → ConnectionHandler #1  (accumule bytes, parse, prépare réponse)
+    ├── Client 2 → ConnectionHandler #2
+    └── Client 3 → ConnectionHandler #3
+```
+
+- Pourquoi on accumule les bytes ?
+Avec NIO non-bloquant, une requête HTTP peut arriver en plusieurs morceaux :
+
+```
+Lecture 1 : "GET /index.html H"
+Lecture 2 : "TTP/1.1\r\nHost: lo"
+Lecture 3 : "calhost\r\n\r\n"
+```
