@@ -17,11 +17,8 @@ public class ConnectionHandler {
         this.config  = config;
     }
 
-    /**
-     * Recoit des bytes du Selector, retourne true quand la requete est complete.
-     */
+    // Recoit des bytes du Selector, retourne true quand la requete est complete.
     public boolean process(ByteBuffer buffer) throws IOException {
-        // TODO — sera implemente a l'etape suivante
         // Pour l'instant on renvoie une reponse hardcodee pour tester
         String response =
             "HTTP/1.1 200 OK\r\n" +
@@ -35,9 +32,7 @@ public class ConnectionHandler {
         return true; // requete "complete" immediatement pour le test
     }
 
-    /**
-     * Envoie la reponse preparee. Retourne true quand tout est envoye.
-     */
+    // Envoie la reponse preparee. Retourne true quand tout est envoye
     public boolean writeResponse(SocketChannel ch) throws IOException {
         if (responseBuffer == null) return true;
         ch.write(responseBuffer);
