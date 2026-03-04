@@ -1,19 +1,24 @@
 package com.localserver;
 
-import java.util.*;
-import java.io.IOException;
-import java.net.http.HttpRequest;
-import java.nio.ByteBuffer;
 import com.localserver.utils.Logger;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.net.http.HttpRequest;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 public class ConnectionHandler {
 
     private static final Logger log = Logger.getLogger(ConnectionHandler.class);
-    
-    // Taille max de l'accumulateur : protection contre les requetes infinies
+
+    // Taille max de l'accumulateur — protection contre les requetes infinies
     private static final int MAX_REQUEST_SIZE = 8192 * 10; // 80KB
+
+    // -------------------------------------------------------------------------
+    // Etat interne de la connexion
+    // -------------------------------------------------------------------------
 
     private enum State {
         READING,     // on accumule les bytes de la requete
@@ -30,9 +35,6 @@ public class ConnectionHandler {
     // La config du serveur (pour les routes, limites, pages d'erreur)
     private final ConfigLoader.ServerConfig config;
 
-    // Reponse preparee, prete a etre envoyee
-    private ByteBuffer responseBuffer;
-
     // Accumulateur de bytes bruts — on y ajoute chaque lecture NIO
     // On utilise un StringBuilder pour les headers (texte)
     // et une liste de bytes pour le body (binaire)
@@ -40,7 +42,10 @@ public class ConnectionHandler {
 
     // La requete HTTP parsee
     private HttpRequest request;
-    
+
+    // La reponse HTTP prete a etre envoyee
+    private ByteBuffer responseBuffer;
+
     // Keep-alive : reutiliser la connexion pour plusieurs requetes
     private boolean keepAlive = false;
 
@@ -50,6 +55,7 @@ public class ConnectionHandler {
     // Timeout : 30 secondes sans activite = on ferme
     private static final long TIMEOUT_MS = 30_000;
 
+    
     public ConnectionHandler(SocketChannel channel, ConfigLoader.ServerConfig config) {
         this.channel = channel;
         this.config  = config;
@@ -60,11 +66,9 @@ public class ConnectionHandler {
     // -------------------------------------------------------------------------
 
     /**
-    * Appele par Server.handleRead() a chaque fois que des bytes arrivent.
-    * Retourne true quand la requete est complete et prete a etre traitee.
-    */
-
-    // Recoit des bytes du Selector, retourne true quand la requete est complete.
+     * Appele par Server.handleRead() a chaque fois que des bytes arrivent.
+     * Retourne true quand la requete est complete et prete a etre traitee.
+     */
     public boolean process(ByteBuffer buffer) throws IOException {
         lastActivity = System.currentTimeMillis();
 
@@ -138,7 +142,6 @@ public class ConnectionHandler {
                 .substring(0, contentLength)
                 .getBytes(StandardCharsets.ISO_8859_1);
         }
-
         // Pas de body (GET, DELETE, etc.)
 
         // Determiner keep-alive
@@ -157,13 +160,11 @@ public class ConnectionHandler {
         return true;
     }
 
-
     // -------------------------------------------------------------------------
     // Phase 2 : PARSING — transformer les bytes en objet HttpRequest
     // -------------------------------------------------------------------------
 
-   
-     private HttpRequest parseRequest(String headerSection) {
+    private HttpRequest parseRequest(String headerSection) {
         String[] lines = headerSection.split("\r\n");
         if (lines.length == 0) return null;
 
@@ -266,11 +267,238 @@ public class ConnectionHandler {
         return best;
     }
 
-    public boolean shouldKeepAlive() {
-        return false;
+    /**
+     * Lit le fichier demande et prepare la reponse 200.
+     */
+    private void serveStaticFile(ConfigLoader.RouteConfig route) {
+        // Construire le chemin complet vers le fichier
+        String filePath = route.root + request.path;
+
+        // Si le chemin se termine par /, ajouter le fichier index
+        if (filePath.endsWith("/") && route.index != null) {
+            filePath += route.index;
+        }
+
+        java.io.File file = new java.io.File(filePath);
+
+        // Securite : empecher la traversee de dossiers ("../../../etc/passwd")
+        try {
+            String canonical = file.getCanonicalPath();
+            String rootCanon = new java.io.File(route.root).getCanonicalPath();
+            if (!canonical.startsWith(rootCanon)) {
+                log.warn("Directory traversal attempt: " + filePath);
+                prepareErrorResponse(403);
+                return;
+            }
+        } catch (IOException e) {
+            prepareErrorResponse(500);
+            return;
+        }
+
+        if (!file.exists()) {
+            prepareErrorResponse(404);
+            return;
+        }
+
+        if (!file.canRead()) {
+            prepareErrorResponse(403);
+            return;
+        }
+
+        // Lire le fichier
+        try {
+            byte[] content = java.nio.file.Files.readAllBytes(file.toPath());
+            String contentType = getContentType(filePath);
+            prepareOkResponse(content, contentType);
+        } catch (IOException e) {
+            log.error("Error reading file: " + filePath, e);
+            prepareErrorResponse(500);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Construction des reponses HTTP
+    // -------------------------------------------------------------------------
+
+    private void prepareOkResponse(byte[] body, String contentType) {
+        String headers =
+            "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: "   + contentType     + "\r\n" +
+            "Content-Length: " + body.length      + "\r\n" +
+            "Connection: "     + (keepAlive ? "keep-alive" : "close") + "\r\n" +
+            "\r\n";
+
+        byte[] headerBytes = headers.getBytes(StandardCharsets.UTF_8);
+
+        // Concatener headers + body dans un seul ByteBuffer
+        responseBuffer = ByteBuffer.allocate(headerBytes.length + body.length);
+        responseBuffer.put(headerBytes);
+        responseBuffer.put(body);
+        responseBuffer.flip(); // pret a etre lu
+    }
+
+    private void prepareRedirectResponse(int code, String location) {
+        String reason = code == 301 ? "Moved Permanently" : "Found";
+        String body   = "<html><body>Redirecting to <a href=\"" +
+                         location + "\">" + location + "</a></body></html>";
+
+        String response =
+            "HTTP/1.1 " + code + " " + reason + "\r\n" +
+            "Location: "       + location          + "\r\n" +
+            "Content-Type: text/html\r\n"           +
+            "Content-Length: " + body.length()      + "\r\n" +
+            "Connection: close\r\n"                 +
+            "\r\n" +
+            body;
+
+        responseBuffer = ByteBuffer.wrap(response.getBytes(StandardCharsets.UTF_8));
+        keepAlive = false;
+    }
+
+    private void prepareErrorResponse(int code) {
+        String reason = getReasonPhrase(code);
+
+        // Chercher une page d'erreur personnalisee dans la config
+        String errorPagePath = config.errorPages.get(code);
+        byte[] body;
+
+        if (errorPagePath != null) {
+            java.io.File f = new java.io.File(
+                "src/main/resources" + errorPagePath
+            );
+            if (f.exists()) {
+                try {
+                    body = java.nio.file.Files.readAllBytes(f.toPath());
+                } catch (IOException e) {
+                    body = defaultErrorBody(code, reason);
+                }
+            } else {
+                body = defaultErrorBody(code, reason);
+            }
+        } else {
+            body = defaultErrorBody(code, reason);
+        }
+
+        String headers =
+            "HTTP/1.1 " + code + " " + reason + "\r\n" +
+            "Content-Type: text/html\r\n"                +
+            "Content-Length: " + body.length             + "\r\n" +
+            "Connection: close\r\n"                      +
+            "\r\n";
+
+        byte[] headerBytes = headers.getBytes(StandardCharsets.UTF_8);
+        responseBuffer = ByteBuffer.allocate(headerBytes.length + body.length);
+        responseBuffer.put(headerBytes);
+        responseBuffer.put(body);
+        responseBuffer.flip();
+
+        keepAlive = false;
+    }
+
+    private byte[] defaultErrorBody(int code, String reason) {
+        String html = "<!DOCTYPE html><html><body>" +
+                      "<h1>" + code + " " + reason + "</h1>" +
+                      "</body></html>";
+        return html.getBytes(StandardCharsets.UTF_8);
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase 4 : WRITING — envoyer la reponse
+    // -------------------------------------------------------------------------
+
+    /**
+     * Appele par Server.handleWrite().
+     * Envoie autant de bytes que possible.
+     * Retourne true quand tout est envoye.
+     */
+    public boolean writeResponse(SocketChannel ch) throws IOException {
+        if (responseBuffer == null) return true;
+
+        ch.write(responseBuffer);
+
+        // hasRemaining() = false → tout a ete envoye
+        return !responseBuffer.hasRemaining();
+    }
+
+    // -------------------------------------------------------------------------
+    // Utilitaires
+    // -------------------------------------------------------------------------
+
+    /**
+     * Decode un body en chunked transfer encoding.
+     * Format : <taille-hex>\r\n<donnees>\r\n ... 0\r\n\r\n
+     */
+    private byte[] decodeChunked(String raw) {
+        List<Byte> result = new ArrayList<>();
+        int pos = 0;
+
+        while (pos < raw.length()) {
+            int lineEnd = raw.indexOf("\r\n", pos);
+            if (lineEnd == -1) break;
+
+            int chunkSize;
+            try {
+                chunkSize = Integer.parseInt(raw.substring(pos, lineEnd).trim(), 16);
+            } catch (NumberFormatException e) {
+                break;
+            }
+
+            if (chunkSize == 0) break; // dernier chunk
+
+            pos = lineEnd + 2;
+            byte[] chunkBytes = raw.substring(pos, pos + chunkSize)
+                                   .getBytes(StandardCharsets.ISO_8859_1);
+            for (byte b : chunkBytes) result.add(b);
+
+            pos += chunkSize + 2; // sauter les donnees + \r\n final
+        }
+
+        byte[] out = new byte[result.size()];
+        for (int i = 0; i < result.size(); i++) out[i] = result.get(i);
+        return out;
+    }
+
+    private String getContentType(String path) {
+        if (path.endsWith(".html") || path.endsWith(".htm")) return "text/html";
+        if (path.endsWith(".css"))  return "text/css";
+        if (path.endsWith(".js"))   return "application/javascript";
+        if (path.endsWith(".json")) return "application/json";
+        if (path.endsWith(".png"))  return "image/png";
+        if (path.endsWith(".jpg") ||
+            path.endsWith(".jpeg")) return "image/jpeg";
+        if (path.endsWith(".gif"))  return "image/gif";
+        if (path.endsWith(".ico"))  return "image/x-icon";
+        if (path.endsWith(".txt"))  return "text/plain";
+        if (path.endsWith(".pdf"))  return "application/pdf";
+        return "application/octet-stream"; // type par defaut
+    }
+
+    private String getReasonPhrase(int code) {
+        switch (code) {
+            case 200: return "OK";
+            case 301: return "Moved Permanently";
+            case 302: return "Found";
+            case 400: return "Bad Request";
+            case 403: return "Forbidden";
+            case 404: return "Not Found";
+            case 405: return "Method Not Allowed";
+            case 413: return "Content Too Large";
+            case 500: return "Internal Server Error";
+            default:  return "Unknown";
+        }
+    }
+
+    public boolean shouldKeepAlive() { return keepAlive; }
+
+    public boolean isTimedOut() {
+        return System.currentTimeMillis() - lastActivity > TIMEOUT_MS;
     }
 
     public void reset() {
+        rawRequest.setLength(0);
+        request        = null;
         responseBuffer = null;
+        state          = State.READING;
+        keepAlive      = false;
     }
 }
