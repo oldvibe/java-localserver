@@ -149,3 +149,21 @@ java.net.BindException: Address already in use
 [2026-03-01 12:35:26] [DEBUG] [Server] New connection from: /127.0.0.1:49866
 [2026-03-01 17:00:19] [INFO ] [Server] Stopping server...
 [2026-03-01 17:00:19] [INFO ] [Server] Server stopped
+[2026-03-06 19:49:52] [INFO ] [Main] Server is starting...
+[2026-03-06 19:49:52] [INFO ] [ConfigLoader] Loading configuration from: src/main/resources/config/server.conf
+[2026-03-06 19:49:52] [INFO ] [ConfigLoader] Config validation passed
+[2026-03-06 19:49:52] [INFO ] [ConfigLoader] Configuration loaded: 1 server(s) found
+[2026-03-06 19:49:52] [INFO ] [Server] Listening on 0.0.0.0:8080
+[2026-03-06 19:49:52] [INFO ] [Server] Server started — entering event loop
+[2026-03-06 19:50:52] [DEBUG] [Server] New connection from: /127.0.0.1:34104
+[2026-03-06 19:50:52] [DEBUG] [ConnectionHandler] GET /nexistepas.html (keep-alive: true)
+[2026-03-06 19:51:32] [DEBUG] [Server] New connection from: /127.0.0.1:55330
+[2026-03-06 19:51:32] [DEBUG] [ConnectionHandler] GET /old (keep-alive: true)
+[2026-03-06 21:27:33] [INFO ] [Server] Stopping server...
+[2026-03-06 21:27:33] [INFO ] [Server] Server stopped
+[2026-03-06 21:27:51] [INFO ] [Main] Server is starting...
+[2026-03-06 21:27:51] [INFO ] [ConfigLoader] Loading configuration from: src/main/resources/config/server.conf
+[2026-03-06 21:27:51] [INFO ] [ConfigLoader] Config validation passed
+[2026-03-06 21:27:51] [INFO ] [ConfigLoader] Configuration loaded: 1 server(s) found
+[2026-03-06 21:27:51] [INFO ] [Server] Listening on 0.0.0.0:8080
+[2026-03-06 21:27:51] [INFO ] [Server] Server started — entering event loop
