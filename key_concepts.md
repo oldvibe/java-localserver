@@ -42,3 +42,8 @@ Lecture 1 : "GET /index.html H"
 Lecture 2 : "TTP/1.1\r\nHost: lo"
 Lecture 3 : "calhost\r\n\r\n"
 ```
+
+Run Program :
+```
+mvn compile && mvn exec:java -Dexec.mainClass="com.localserver.Main"
+```
