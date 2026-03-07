@@ -5,13 +5,14 @@ import java.util.Map;
 import com.localserver.utils.Cookie;
 
 public class HttpRequest {
-    private String method;
-    private String path;
-    private String queryString = "";
-    private String version;
-    private Map<String, String> headers = new HashMap<>();
-    private Map<String, String> cookies = new HashMap<>();
-    private byte[] body;
+    public String method;
+    public String path;
+    public String queryString;
+    public String version;
+    public Map<String, String> headers = new HashMap<>();
+    public Map<String, String> cookies = new HashMap<>();
+    public byte[] body = new byte[0];
+    public boolean methodNotAllowed = false;
 
     private java.io.ByteArrayOutputStream rawData = new java.io.ByteArrayOutputStream();
     private boolean headersParsed = false;
