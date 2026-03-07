@@ -1,0 +1,22 @@
+{
+  "servers": [
+    {
+      "host": "0.0.0.0",
+      "ports": [8081],
+      "client_body_size_limit": 10485760,
+      "error_pages": {
+        "404": "/error_pages/404.html",
+        "500": "/error_pages/500.html"
+      },
+      "routes": [
+        {
+          "path": "/",
+          "methods": ["GET"],
+          "root": "./src/main/resources/www",
+          "index": "index.html",
+          "listing": false
+        }
+      ]
+    }
+  ]
+}
