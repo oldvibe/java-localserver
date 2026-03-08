@@ -11,6 +11,7 @@ public class Config {
     public static class ServerConfig {
         public String host;
         public List<Integer> ports = new ArrayList<>();
+        public boolean isDefault;
         public Map<Integer, String> errorPages = new HashMap<>();
         public long clientBodySizeLimit;
         public List<RouteConfig> routes = new ArrayList<>();

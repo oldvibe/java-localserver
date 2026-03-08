@@ -103,6 +103,23 @@ public class ResponseBuilder {
         return buf;
     }
 
+    /**
+     * Convertit un HttpResponse en ByteBuffer pour NIO.
+     */
+    public static ByteBuffer fromResponse(HttpResponse response, boolean keepAlive) {
+        if (keepAlive) {
+            response.setHeader("Connection", "keep-alive");
+        } else {
+            response.setHeader("Connection", "close");
+        }
+        
+        byte[] bytes = response.getBytes();
+        ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer;
+    }
+
     // -------------------------------------------------------------------------
     // Construction bas niveau
     // -------------------------------------------------------------------------

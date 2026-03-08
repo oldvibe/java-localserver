@@ -25,8 +25,19 @@
         {
           "path": "/test_dir",
           "methods": ["GET"],
-          "root": "www",
+          "root": "www/test_dir",
           "listing": true
+        },
+        {
+          "path": "/uploads",
+          "methods": ["GET", "POST", "DELETE"],
+          "root": "www/uploads",
+          "listing": true
+        },
+        {
+          "path": "/temp",
+          "methods": ["GET", "HEAD"],
+          "redirection": "https://example.com"
         },
         {
           "path": "/cgi-bin",

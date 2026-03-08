@@ -81,54 +81,6 @@ public class Server {
             }
         }
 
-        // // 2. Pour chaque port dans la config, ouvrir un ServerSocketChannel
-        // for (int port : config.ports) {
-        //     ServerSocketChannel serverChannel = ServerSocketChannel.open();
-
-        //     // NON-BLOCKING : le channel ne bloque pas sur accept()
-        //     // Sans ca, accept() attendrait indefiniment une connexion
-        //     serverChannel.configureBlocking(false);
-
-        //     // SO_REUSEADDR : permet de relancer le serveur immediatement
-        //     // apres un crash sans attendre que l'OS libere le port
-        //     serverChannel.socket().setReuseAddress(true);
-
-        //     // Bind : associe ce channel a l'adresse host:port
-        //     serverChannel.bind(new InetSocketAddress(config.host, port));
-
-        //     // Enregistrer ce channel dans le Selector
-        //     // OP_ACCEPT = "previens-moi quand un client veut se connecter"
-        //     serverChannel.register(selector, SelectionKey.OP_ACCEPT);
-
-        //     serverChannels.add(serverChannel);
-        //     log.info("Listening on " + config.host + ":" + port);
-        // }
-
-        // running = true;
-        // log.info("Server started — entering event loop");
-
-        // 3. Lancer l'event loop
-        
-        
-        // config = ConfigLoader.loadConfig(config);
-        
-        // for (Config.ServerConfig sc : config.servers) {
-        //     Router router = new Router(sc);
-        //     for (int port : sc.ports) {
-        //         if (!boundPorts.contains(port)) {
-        //             try {
-        //                 setupServerSocket(port);
-        //                 boundPorts.add(port);
-        //                 portRouters.put(port, new java.util.ArrayList<>());
-        //             } catch (IOException e) {
-        //                 System.err.println("Error binding port " + port + ": " + e.getMessage());
-        //                 continue; // Requirement: One bad config shouldn't bring down others
-        //             }
-        //         }
-        //         portRouters.get(port).add(router);
-        //     }
-        // }
-
         // On bind chaque port independamment.
         // Si un port echoue, on log et on continue — les autres ports restent actifs.
         for (int port : portConfigs.keySet()) {
@@ -147,52 +99,11 @@ public class Server {
         running = true;
         log.info("Server started — entering event loop");
         log.info(Metrics.getJson());
-        // System.out.println("Server is running. Waiting for connections...");
-        
+
         eventLoop();
-        // while (true) {
-        //     int readyChannels = selector.select(1000); // Wait up to 1 second
-            
-        //     if (readyChannels == 0) {
-        //         // Check for timeouts only when idle
-        //         long timeoutLimit = 60000;
-        //         Iterator<SelectionKey> allKeys = selector.keys().iterator();
-        //         while (allKeys.hasNext()) {
-        //             SelectionKey key = allKeys.next();
-        //             if (key.isValid() && key.attachment() instanceof ConnectionState) {
-        //                 ConnectionState state = (ConnectionState) key.attachment();
-        //                 if (state.isTimedOut(timeoutLimit)) {
-        //                     System.out.println("Closing timed out connection");
-        //                     com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-        //                     try { key.channel().close(); } catch (IOException ignored) {}
-        //                     key.cancel();
-        //                 }
-        //             }
-        //         }
-        //         continue;
-        //     }
+        }
 
-        //     Set<SelectionKey> selectedKeys = selector.selectedKeys();
-        //     Iterator<SelectionKey> iter = selectedKeys.iterator();
-
-        //     while (iter.hasNext()) {
-        //         SelectionKey key = iter.next();
-
-        //         if (key.isAcceptable()) {
-        //             acceptConnection(key);
-        //         } else if (key.isReadable()) {
-        //             handleRead(key);
-        //         } else if (key.isWritable()) {
-        //             handleWrite(key);
-        //         }
-
-        //         iter.remove();
-   
-        //     }
-        // }
-    }
-   
-    private void bindPort(int port) throws IOException {
+        private void bindPort(int port) throws IOException {
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         serverChannel.configureBlocking(false);
         serverChannel.socket().setReuseAddress(true);
@@ -265,65 +176,12 @@ public class Server {
         }
     }
 
-    // private void setupServerSocket(int port) throws IOException {
-    //     ServerSocketChannel serverChannel = ServerSocketChannel.open();
-    //     serverChannel.bind(new InetSocketAddress(port));
-    //     serverChannel.configureBlocking(false);
-    //     serverChannel.register(selector, SelectionKey.OP_ACCEPT, port); // Attach port number
-    //     System.out.println("Listening on port: " + port);
-    // }
-
-    // private void acceptConnection(SelectionKey key) throws IOException {
-    //     ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
-    //     int port = (int) key.attachment();
-    //     SocketChannel clientChannel = serverChannel.accept();
-    //     clientChannel.configureBlocking(false);
-        
-    //     com.localserver.utils.Metrics.activeConnections.incrementAndGet();
-        
-    //     HttpRequest request = new HttpRequest();
-    //     java.util.List<Router> routers = portRouters.get(port);
-        
-    //     ConnectionState state = new ConnectionState(request, routers);
-    //     clientChannel.register(selector, SelectionKey.OP_READ, state);
-        
-    //     System.out.println("Accepted connection on port " + port + " from: " + clientChannel.getRemoteAddress());
-    // }
-
-    // private static class ConnectionState {
-    //     HttpRequest request;
-    //     java.util.List<Router> routers;
-    //     Router selectedRouter;
-    //     HttpResponse response;
-    //     java.nio.ByteBuffer headerBuffer;
-    //     java.nio.ByteBuffer bodyBuffer;
-    //     long lastActivity;
-
-    //     // ConnectionState(HttpRequest request, java.util.List<Router> routers) {
-    //     //     this.request = request;
-    //     //     this.routers = routers;
-    //     //     this.lastActivity = System.currentTimeMillis();
-    //     // }
-
-    //     void updateActivity() {
-    //         this.lastActivity = System.currentTimeMillis();
-    //     }
-
-    //     // boolean isTimedOut(long timeoutMs) {
-    //     //     return System.currentTimeMillis() - lastActivity > timeoutMs;
-    //     // }
-    // }
-
     private void handleRead(SelectionKey key, ByteBuffer buffer) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
-        // ConnectionState state = (ConnectionState) key.attachment();
         ConnectionHandler handler   = (ConnectionHandler) key.attachment();
-
-        // state.updateActivity();
 
         buffer.clear();
         try {
-            // java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(4096);
             int bytesRead = clientChannel.read(buffer);
 
             if (bytesRead == -1) {
@@ -341,36 +199,6 @@ public class Server {
                 Metrics.totalRequests.incrementAndGet();
                 key.interestOps(SelectionKey.OP_WRITE);
             }
-            // byte[] data = new byte[buffer.remaining()];
-            // buffer.get(data);
-            
-            // // Temporary limit check for headers
-            // if (state.request.appendData(data, 10000000)) {
-            //     // If router not selected yet, find it based on Host header
-            //     if (state.selectedRouter == null) {
-            //         String host = state.request.getHeaders().getOrDefault("Host", "").split(":")[0].trim();
-            //         for (Router r : state.routers) {
-            //             if (r.getServerConfig().host.equalsIgnoreCase(host)) {
-            //                 state.selectedRouter = r;
-            //                 break;
-            //             }
-            //         }
-            //         if (state.selectedRouter == null) state.selectedRouter = state.routers.get(0);
-            //     }
-
-            //     // Final check with actual limit
-            //     if (state.request.getBody() != null && state.request.getBody().length > state.selectedRouter.getServerConfig().clientBodySizeLimit) {
-            //         state.response = new HttpResponse();
-            //         state.response.setStatusCode(413, "Payload Too Large");
-            //         state.response.setBody("<h1>413 Payload Too Large</h1>");
-            //         key.interestOps(SelectionKey.OP_WRITE);
-            //         return;
-            //     }
-
-            //     System.out.println("Received " + state.request.getMethod() + " request for " + state.request.getPath());
-            //     state.response = state.selectedRouter.handle(state.request);
-            //     key.interestOps(SelectionKey.OP_WRITE);
-            // }
         } catch (IOException e) {
             try { clientChannel.close(); } catch (IOException ignored) {}
         }
@@ -381,8 +209,6 @@ public class Server {
     private void handleWrite(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
         ConnectionHandler handler   = (ConnectionHandler) key.attachment();
-        // ConnectionState state = (ConnectionState) key.attachment();
-        // state.updateActivity();
         boolean done = handler.writeResponse(clientChannel);
 
         if (done) {
@@ -394,55 +220,6 @@ public class Server {
                 closeChannel(key);
             }
         }
-        
-        // if (state.response != null) {
-        //     try {
-        //         if (state.headerBuffer == null) {
-        //             state.headerBuffer = java.nio.ByteBuffer.wrap(state.response.getHeaderBytes());
-        //             byte[] body = state.response.getBody();
-        //             if (body != null) {
-        //                 state.bodyBuffer = java.nio.ByteBuffer.wrap(body);
-        //             }
-        //         }
-                
-        //         if (state.headerBuffer.hasRemaining()) {
-        //             while (state.headerBuffer.hasRemaining()) {
-        //                 if (clientChannel.write(state.headerBuffer) == 0) return;
-        //             }
-        //         }
-
-        //         if (state.bodyBuffer != null && state.bodyBuffer.hasRemaining()) {
-        //             while (state.bodyBuffer.hasRemaining()) {
-        //                 int written = clientChannel.write(state.bodyBuffer);
-        //                 if (written == 0) {
-        //                     return; // Buffer full, wait for next OP_WRITE
-        //                 }
-        //             }
-        //         }
-
-        //         if (!state.headerBuffer.hasRemaining() && (state.bodyBuffer == null || !state.bodyBuffer.hasRemaining())) {
-        //             System.out.println("Response fully sent. Closing connection.");
-        //             com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-        //             key.cancel();
-        //             clientChannel.close();
-        //         }
-
-        //         // boolean done = handler.writeResponse(clientChannel);
-
-        //         // if (done) {
-        //         //     if (handler.shouldKeepAlive()) {
-        //         //         handler.reset();
-        //         //         key.interestOps(SelectionKey.OP_READ);
-        //         //     } else {
-        //         //         closeChannel(key);
-        //         //     }
-        //         // }
-        //     } catch (IOException e) {
-        //         com.localserver.utils.Metrics.activeConnections.decrementAndGet();
-        //         try { key.channel().close(); } catch (IOException ignored) {}
-        //         key.cancel();
-        //     }
-        // }
     }
 
     /**
@@ -475,7 +252,7 @@ public class Server {
         // OP_READ = "previens-moi quand ce client envoie des donnees"
         // On attache un objet ConnectionHandler a cette cle —
         // il sera recupere dans handleRead() pour ce client specifique
-        ConnectionHandler handler = new ConnectionHandler(clientChannel, selectedConfig);
+        ConnectionHandler handler = new ConnectionHandler(clientChannel, configs, this);
         clientChannel.register(selector, SelectionKey.OP_READ, handler);
 
         Metrics.activeConnections.incrementAndGet();
@@ -490,9 +267,8 @@ public class Server {
      * Si aucune ne correspond, retourne la config marquee default,
      * ou a defaut la premiere.
      */
-    private ConfigLoader.ServerConfig selectConfig(
+    public ConfigLoader.ServerConfig selectConfig(
             List<ConfigLoader.ServerConfig> configs, String hostHeader) {
-
         if (configs.size() == 1) return configs.get(0);
 
         if (hostHeader != null) {
@@ -532,47 +308,7 @@ public class Server {
     //         log.debug("Client closed connection: " + clientChannel.getRemoteAddress());
     //         closeChannel(key);
     //         return;
-    //     }
-
-    //     if (bytesRead == 0) return; // rien a lire
-
-    //     // Passer les bytes au ConnectionHandler
-    //     // Il accumule les donnees et parse la requete HTTP
-    //     buffer.flip(); // passer en mode lecture (limit = position, position = 0)
-    //     boolean requestComplete = handler.process(buffer);
-
-    //     if (requestComplete) {
-    //         Metrics.totalRequests.incrementAndGet();
-    //         // La requete est complete — on est pret a envoyer une reponse
-    //         // On change l'interet de ce channel : OP_WRITE
-    //         // "previens-moi quand je peux ecrire vers ce client"
-    //         key.interestOps(SelectionKey.OP_WRITE);
-    //     }
-    // }
-
-  
-    // private void handleWrite(SelectionKey key) throws IOException {
-    //     SocketChannel clientChannel = (SocketChannel) key.channel();
-    //     ConnectionHandler handler = (ConnectionHandler) key.attachment();
-
-    //     // Demander au handler d'envoyer sa reponse
-    //     boolean done = handler.writeResponse(clientChannel);
-
-    //     if (done) {
-    //         // Reponse envoyee completement
-    //         if (handler.shouldKeepAlive()) {
-    //             // HTTP keep-alive : reutiliser la connexion pour la prochaine requete
-    //             handler.reset();
-    //             key.interestOps(SelectionKey.OP_READ);
-    //         } else {
-    //             // Fermer la connexion
-    //             closeChannel(key);
-    //         }
-    //     }
-    //     // Si pas done : la reponse est grosse, on reviendra au prochain cycle
-    // }
-
-    // -------------------------------------------------------------------------
+        // -------------------------------------------------------------------------
     // Utilitaires
     // -------------------------------------------------------------------------
 

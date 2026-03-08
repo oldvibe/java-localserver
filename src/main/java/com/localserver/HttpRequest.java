@@ -153,4 +153,23 @@ public class HttpRequest {
     public String getVersion() { return version; }
     public Map<String, String> getHeaders() { return headers; }
     public byte[] getBody() { return body; }
+
+    public Map<String, String> getFormParams() {
+        Map<String, String> params = new HashMap<>();
+        if (body == null || body.length == 0) return params;
+        
+        String bodyStr = new String(body);
+        String[] pairs = bodyStr.split("&");
+        for (String pair : pairs) {
+            String[] kv = pair.split("=", 2);
+            if (kv.length == 2) {
+                try {
+                    String key = java.net.URLDecoder.decode(kv[0], "UTF-8");
+                    String value = java.net.URLDecoder.decode(kv[1], "UTF-8");
+                    params.put(key, value);
+                } catch (java.io.UnsupportedEncodingException ignored) {}
+            }
+        }
+        return params;
+    }
 }

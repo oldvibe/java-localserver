@@ -11,24 +11,24 @@
       "routes": [
         {
           "path": "/ok",
-          "methods": ["GET"],
+          "methods": ["GET", "HEAD"],
           "root": "www",
           "index": "index.html"
         },
         {
           "path": "/uploads",
-          "methods": ["GET", "POST", "DELETE"],
+          "methods": ["GET", "POST", "DELETE", "HEAD"],
           "root": "www/uploads",
           "listing": true
         },
         {
           "path": "/temp",
-          "methods": ["GET"],
+          "methods": ["GET", "HEAD"],
           "redirection": "https://example.com"
         },
         {
           "path": "/cgi-bin",
-          "methods": ["GET", "POST"],
+          "methods": ["GET", "POST", "HEAD"],
           "root": "cgi-bin",
           "cgi": {
             ".py": "/usr/bin/python3"

@@ -10,24 +10,20 @@ public class Main {
 
     public static void main(String[] args) {
         Logger.enableFileLogging("server.log");
+        Logger.setLevel(Logger.Level.DEBUG);
 
-        String configPath = args.length > 0 
-            ? args[0] 
-            // : "config.json";
-            : "src/main/resources/config/server.conf";
-        // System.out.println("Starting LocalServer with config: " + configPath);
+        String configPath = args.length > 0 ? args[0] : "config.json";
+        
         log.info("Starting LocalServer with config: " + configPath);
         
         try {
             List<ConfigLoader.ServerConfig> configs = ConfigLoader.load(configPath);
             
-            // Initializing the server
             Server server = new Server(configs);
             Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
             server.start();
 
         } catch (Exception e) {
-            // System.err.println("Failed to start server: " + e.getMessage());
             log.error("Fatal error", e);
             e.printStackTrace();
             System.exit(1);

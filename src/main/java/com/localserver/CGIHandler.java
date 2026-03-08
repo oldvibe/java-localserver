@@ -2,8 +2,11 @@ package com.localserver;
 
 import java.io.*;
 import java.util.Map;
+import com.localserver.utils.Logger;
 
 public class CGIHandler {
+    private static final Logger log = Logger.getLogger(CGIHandler.class);
+
     public static HttpResponse execute(HttpRequest request, String scriptPath, String executable) {
         try {
             ProcessBuilder pb = new ProcessBuilder(executable, scriptPath);
@@ -35,7 +38,7 @@ public class CGIHandler {
             InputStream es = process.getErrorStream();
             byte[] error = es.readAllBytes();
             if (error.length > 0) {
-                System.err.println("CGI Error: " + new String(error));
+                log.error("CGI Error: " + new String(error));
             }
             
             int exitCode = process.waitFor();
