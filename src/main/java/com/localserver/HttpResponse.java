@@ -23,6 +23,10 @@ public class HttpResponse {
         this.statusMessage = message;
     }
 
+    public int getStatusCode() {
+        return statusCode;
+    }
+
     public void setHeader(String key, String value) {
         headers.put(key, value);
     }
