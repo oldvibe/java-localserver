@@ -245,7 +245,9 @@ public class ConfigLoader {
     private static ServerConfig convertFromRaw(Config.ServerConfig raw) {
         ServerConfig sc = new ServerConfig();
         sc.host               = raw.host != null ? raw.host : "0.0.0.0";
+        sc.serverName         = raw.host != null ? raw.host : "0.0.0.0";
         sc.ports              = raw.ports;
+        sc.isDefault          = raw.isDefault;
         sc.clientMaxBodySize  = raw.clientBodySizeLimit > 0
                                 ? raw.clientBodySizeLimit
                                 : 1024 * 1024;
@@ -280,9 +282,7 @@ public class ConfigLoader {
         return sc;
     }
 
-    public static Config parseJson(String configPath) throws IOException {
-
-        String content = new String(Files.readAllBytes(Paths.get(configPath)));
+    public static Config parseJson(String content) {
         Config config = new Config();
         
         int serversIndex = content.indexOf("\"servers\"");
@@ -298,6 +298,7 @@ public class ConfigLoader {
             sc.host = getString(block, "host");
             sc.ports = getIntList(block, "ports");
             sc.clientBodySizeLimit = getLong(block, "client_body_size_limit");
+            sc.isDefault = getBoolean(block, "default");
             
             int routesIndex = block.indexOf("\"routes\"");
             if (routesIndex != -1) {
@@ -313,22 +314,6 @@ public class ConfigLoader {
                         rc.listing = getBoolean(rBlock, "listing");
                         rc.redirection = getString(rBlock, "redirection");
                         rc.cgi         = getJsonStringMap(rBlock, "cgi");
-                        // Matkhafch ma7aydthach gha drtha f function okhra 🙃
-                        // smitha "getJsonStringMap"
-
-                        // int cgiIndex = rBlock.indexOf("\"cgi\"");
-                        // if (cgiIndex != -1) {
-                        //     int cgiObjStart = rBlock.indexOf("{", cgiIndex);
-                        //     if (cgiObjStart != -1) {
-                        //         String cgiContent = findBlocks(rBlock, cgiIndex).get(0); // This should be the object
-                        //         // Simple parse of "key": "value"
-                        //         Pattern p = Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([^\"]+)\"");
-                        //         Matcher m = p.matcher(cgiContent);
-                        //         while (m.find()) {
-                        //             rc.cgi.put(m.group(1), m.group(2));
-                        //         }
-                        //     }
-                        // }
                         sc.routes.add(rc);
                     }
                 }

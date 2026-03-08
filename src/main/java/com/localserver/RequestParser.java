@@ -77,13 +77,6 @@ public class RequestParser {
             req.queryString = "";
         }
 
-        // Securite basique : bloquer les chemins avec ".."
-        // pour eviter "../../../etc/passwd"
-        if (req.path.contains("..")) {
-            log.warn("Path traversal attempt blocked: " + req.path);
-            return false;
-        }
-
         return true;
     }
 
@@ -118,6 +111,11 @@ public class RequestParser {
             // Si le header existe deja, on concatene avec une virgule
             // (comportement standard HTTP/1.1 pour les headers dupliques)
             req.headers.merge(name, value, (existing, newVal) -> existing + ", " + newVal);
+
+            // Gestion des cookies
+            if (name.equals("cookie")) {
+                req.cookies.putAll(com.localserver.utils.Cookie.parse(value));
+            }
         }
     }
 
@@ -127,8 +125,9 @@ public class RequestParser {
 
     private static boolean validate(HttpRequest req) {
         // Methodes supportees par notre serveur
-        List<String> supported = Arrays.asList("GET", "POST", "DELETE");
+        List<String> supported = Arrays.asList("GET", "POST", "DELETE", "HEAD");
 
+        log.info("Validating method: " + req.method);
         if (!supported.contains(req.method)) {
             log.warn("Unsupported method: " + req.method);
             // On ne retourne pas false ici — on laisse ErrorHandler

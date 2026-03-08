@@ -10,10 +10,16 @@ Whether you're a CS student, a curious beginner, or an experienced dev going bac
 
 ### High-Level System Architecture
 Imagine a bustling restaurant. 
-- The **Restaurant Front Door** is the `ServerSocketChannel` listening on a port (e.g., 8080).
-- The **Maitre D'** is the `Selector` (Java NIO), efficiently managing multiple waiting customers without needing a separate waiter for every single one.
-- The **Waiter** is `Server.java`, taking orders (`HttpRequest`) and bringing food (`HttpResponse`).
-- The **Kitchen/Chef** is `Router.java`, figuring out what the customer ordered (a static file, a CGI script, or a file upload) and preparing the result.
+- **The Restaurant Front Door** is the `ServerSocketChannel` listening on a port (e.g., 8080).
+- **The Maitre D'** is the `Selector` in `Server.java`, efficiently managing multiple waiting customers.
+- **The Waiter** is `ConnectionHandler.java`. This is our specialized connection module. It takes the raw orders (bytes), parses them into a proper menu item (`HttpRequest`), and eventually brings the plate back to the table (`HttpResponse`).
+- **The Kitchen/Chef** is `Router.java`. This is our server logic module. It decides exactly how to fulfill the request—whether it's grabbing a pre-made item (static file), cooking something fresh (CGI), or handling a new delivery (POST upload).
+
+### Seamless Module Integration
+Our architecture strictly separates **Connection Management** from **Business Logic**:
+1. `Server.java` (The Acceptor) accepts new connections and registers them.
+2. `ConnectionHandler.java` (The Peer Module) manages the state of the socket, buffers bytes, and handles the HTTP keep-alive lifecycle.
+3. `Router.java` (The Logic Module) is invoked by the handler to generate the actual response content based on the configuration.
 
 ### How it Fits into the Client-Server Model
 When you type `http://localhost:8080` into your browser, your browser (the **Client**) establishes a TCP connection to our server. It sends a text-based HTTP request. Our **Java LocalServer** reads that text, parses it, finds the requested resource, and sends back an HTTP response containing headers (like `Content-Type: text/html`) and the raw bytes of the file.
@@ -159,10 +165,18 @@ java -jar target/java-localserver-1.0-SNAPSHOT.jar config.json
 ```
 
 ### Testing Framework
-We have an extensive `Makefile` suite for validation:
-- `make audit-test`: Validates core HTTP compliance.
-- `make external-test`: Validates socket-level edge cases (malformed headers, pipelining).
-- `make complex-test`: A visual unit-test suite checking 50MB large file transfers and CGI execution.
+We have a comprehensive shell script suite for validation. You can run all tests via:
+```bash
+make test
+# OR
+./test.sh
+```
+This script automates:
+- **Project Build:** Ensures the latest code is compiled.
+- **Compliance Tests:** Validates core HTTP/1.1 compliance.
+- **Integration Tests:** Checks CGI execution, large file transfers (10MB), and custom error pages.
+- **Load Testing:** Uses `siege` to simulate 50 concurrent users over 10 seconds.
+- **Server Lifecycle:** Automatically starts the server before tests and kills it afterwards.
 
 ---
 
