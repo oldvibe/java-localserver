@@ -250,7 +250,6 @@ run_session_login_tests() {
     [[ "$code" == "302" ]] && pass "Login successful (302)" || fail "Login failed, got $code"
 
     # 3. Access protected with cookie
-    # Note: We check if the server sets the cookie and if we can use it
     code=$(curl -s -b "$COOKIE_FILE" -o /dev/null -w "%{http_code}" --noproxy '*' "$BASE_URL/protected.html")
     [[ "$code" == "200" ]] && pass "Authorized access allowed" || fail "Expected 200 with cookie, got $code"
 
@@ -267,6 +266,74 @@ run_session_login_tests() {
     [[ "$code" == "302" ]] && pass "Logout works (re-redirected)" || fail "Logout failed, got $code"
 
     rm -f "$COOKIE_FILE"
+}
+
+run_pipelining_tests() {
+    header "RUNNING HTTP KEEP-ALIVE TESTS"
+    
+    echo -n "[TEST] Sequential requests (Keep-Alive): "
+    python3 - <<'PY' "$HOST" "$PORT"
+import socket, sys, time
+try:
+    s = socket.create_connection((sys.argv[1], int(sys.argv[2])), timeout=5)
+    
+    # Request 1
+    s.sendall(b"GET /ok HTTP/1.1\r\nHost: localhost\r\n\r\n")
+    res1 = b""
+    while b"\r\n\r\n" not in res1:
+        data = s.recv(4096)
+        if not data: break
+        res1 += data
+    
+    # Request 2 on same socket
+    s.sendall(b"GET /ok HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+    res2 = b""
+    while True:
+        data = s.recv(4096)
+        if not data: break
+        res2 += data
+    s.close()
+    
+    if b"200 OK" in res1 and b"200 OK" in res2:
+        sys.exit(0)
+    else:
+        sys.stderr.write(f"Failed: Res1 contains 200: {b'200 OK' in res1}, Res2 contains 200: {b'200 OK' in res2}\n")
+        sys.exit(1)
+except Exception as e:
+    sys.stderr.write(f"Keep-Alive error: {e}\n")
+    sys.exit(1)
+PY
+    if [ $? -eq 0 ]; then pass "SUCCESS"; else fail "FAILED"; fi
+}
+
+run_advanced_integration_tests() {
+    header "RUNNING ADVANCED INTEGRATION TESTS"
+
+    # Test Chunked Upload
+    echo -n "[TEST] Chunked Transfer Upload      : "
+    echo "chunked-data-content" > chunked_sample.txt
+    code=$(curl -s -o /dev/null -w "%{http_code}" --noproxy '*' -H "Transfer-Encoding: chunked" -X POST --data-binary @chunked_sample.txt "$BASE_URL/uploads")
+    if [[ "$code" == "201" ]]; then pass "SUCCESS"; else fail "FAILED (got $code)"; fi
+    rm -f chunked_sample.txt
+
+    # Test Large Headers
+    echo -n "[TEST] Large Headers check          : "
+    # Create a 10KB header
+    LARGE_HDR=$(python3 -c "print('X' * 10000)")
+    code=$(curl -s -o /dev/null -w "%{http_code}" --noproxy '*' -H "X-Large: $LARGE_HDR" "$BASE_URL/ok")
+    # MAX_REQUEST_SIZE is around 80KB, so 10KB should pass. 
+    # If we sent 100KB it should 413.
+    [[ "$code" == "200" ]] && pass "SUCCESS (Accepted 10KB)" || fail "FAILED (got $code)"
+
+    # Test 405 with Allow header
+    echo -n "[TEST] 405 Method Not Allowed + Allow: "
+    allow_hdr=$(curl -sS -I --noproxy '*' -X DELETE "$BASE_URL/ok" | grep -i '^Allow:' | awk '{print $2}' | tr -d '\r\n')
+    # /ok route allows GET and HEAD (in audit.json) or just GET (in config.json)
+    if [[ "$allow_hdr" == *"GET"* ]]; then
+        pass "SUCCESS (Allow: $allow_hdr)"
+    else
+        fail "FAILED (Allow: '$allow_hdr')"
+    fi
 }
 
 run_load_test() {
@@ -292,6 +359,8 @@ run_basic_tests
 run_audit_tests
 run_external_security_tests
 run_session_login_tests
+run_pipelining_tests
+run_advanced_integration_tests
 run_load_test
 
 header "FINAL TEST SUMMARY"

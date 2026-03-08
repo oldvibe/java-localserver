@@ -38,9 +38,9 @@ public class Router {
                 response = new HttpResponse();
                 response.setStatusCode(302, "Found");
                 response.setHeader("Location", "/protected.html");
-                return finalize(response, sessionId, session);
+                return finalize(response, sessionId, session, null);
             } else {
-                return errorResponse(401, "Unauthorized", sessionId, session);
+                return errorResponse(401, "Unauthorized", sessionId, session, null);
             }
         }
 
@@ -50,7 +50,7 @@ public class Router {
             response = new HttpResponse();
             response.setStatusCode(302, "Found");
             response.setHeader("Location", "/login.html");
-            return finalize(response, sessionId, session);
+            return finalize(response, sessionId, session, null);
         }
 
         // 4. Protected page check
@@ -59,7 +59,7 @@ public class Router {
                 response = new HttpResponse();
                 response.setStatusCode(302, "Found");
                 response.setHeader("Location", "/login.html");
-                return finalize(response, sessionId, session);
+                return finalize(response, sessionId, session, null);
             }
         }
 
@@ -67,21 +67,19 @@ public class Router {
         if (request.path.equals("/metrics")) {
             response = new HttpResponse();
             response.setHeader("Content-Type", "application/json");
-            String json = Metrics.getJson();
-            log.info("Returning metrics: " + json);
-            response.setBody(json);
-            return finalize(response, sessionId, session);
+            response.setBody(Metrics.getJson());
+            return finalize(response, sessionId, session, null);
         }
 
         // 6. Regular Routing
         ConfigLoader.RouteConfig route = findRoute(request.path);
         if (route == null) {
-            return errorResponse(404, "Not Found", sessionId, session);
+            return errorResponse(404, "Not Found", sessionId, session, null);
         }
 
         // Check allowed methods
         if (!route.methods.isEmpty() && !route.methods.contains(request.method)) {
-            return errorResponse(405, "Method Not Allowed", sessionId, session);
+            return errorResponse(405, "Method Not Allowed", sessionId, session, route);
         }
 
         // Handle Redirection
@@ -89,7 +87,7 @@ public class Router {
             response = new HttpResponse();
             response.setStatusCode(route.redirectCode, route.redirectCode == 301 ? "Moved Permanently" : "Found");
             response.setHeader("Location", route.redirectTarget);
-            return finalize(response, sessionId, session);
+            return finalize(response, sessionId, session, route);
         }
 
         // Calculate local path relative to route root
@@ -101,7 +99,7 @@ public class Router {
         for (String ext : route.cgiHandlers.keySet()) {
             if (request.path.endsWith(ext)) {
                 response = CGIHandler.execute(request, localPath, route.cgiHandlers.get(ext));
-                return finalize(response, sessionId, session);
+                return finalize(response, sessionId, session, route);
             }
         }
 
@@ -113,17 +111,25 @@ public class Router {
         } else if (request.method.equals("GET") || request.method.equals("HEAD")) {
             response = serveStaticFile(request, localPath, route, sessionId, session);
         } else {
-            response = errorResponse(405, "Method Not Allowed", sessionId, session);
+            response = errorResponse(405, "Method Not Allowed", sessionId, session, route);
         }
 
-        return finalize(response, sessionId, session);
+        return finalize(response, sessionId, session, route);
     }
 
-    private HttpResponse finalize(HttpResponse response, String sessionId, Session session) {
+    private HttpResponse finalize(HttpResponse response, String sessionId, Session session, ConfigLoader.RouteConfig route) {
         if (response == null) return null;
+        
+        // Add Session Cookie
         if (sessionId == null || !sessionId.equals(session.getId())) {
             response.addCookie(new Cookie("LOCALSERVER_SESSION", session.getId()));
         }
+        
+        // Handle 405 Allow Header
+        if (response.getStatusCode() == 405 && route != null && !route.methods.isEmpty()) {
+            response.setHeader("Allow", String.join(", ", route.methods));
+        }
+        
         return response;
     }
 
@@ -151,12 +157,12 @@ public class Router {
                 } else if (route.listing) {
                     return directoryListing(file, request.path);
                 } else {
-                    return errorResponse(403, "Forbidden", sessionId, session);
+                    return errorResponse(403, "Forbidden", sessionId, session, route);
                 }
             } else if (route.listing) {
                 return directoryListing(file, request.path);
             } else {
-                return errorResponse(403, "Forbidden", sessionId, session);
+                return errorResponse(403, "Forbidden", sessionId, session, route);
             }
         }
 
@@ -166,14 +172,14 @@ public class Router {
             String rootCanon = new File(route.root).getCanonicalPath();
             if (!canonical.startsWith(rootCanon)) {
                 log.warn("Path traversal blocked: " + localPath);
-                return errorResponse(403, "Forbidden", sessionId, session);
+                return errorResponse(403, "Forbidden", sessionId, session, route);
             }
         } catch (IOException e) {
-            return errorResponse(500, "Internal Server Error", sessionId, session);
+            return errorResponse(500, "Internal Server Error", sessionId, session, route);
         }
 
-        if (!file.exists())  return errorResponse(404, "Not Found", sessionId, session);
-        if (!file.canRead()) return errorResponse(403, "Forbidden", sessionId, session);
+        if (!file.exists())  return errorResponse(404, "Not Found", sessionId, session, route);
+        if (!file.canRead()) return errorResponse(403, "Forbidden", sessionId, session, route);
 
         try {
             byte[] content = Files.readAllBytes(file.toPath());
@@ -183,7 +189,7 @@ public class Router {
             return resp;
         } catch (IOException e) {
             log.error("Error reading file: " + localPath, e);
-            return errorResponse(500, "Internal Server Error", sessionId, session);
+            return errorResponse(500, "Internal Server Error", sessionId, session, route);
         }
     }
 
@@ -207,13 +213,13 @@ public class Router {
 
     private HttpResponse handleDelete(String path) {
         File file = new File(path);
-        if (!file.exists()) return null; // let handle() call errorResponse
+        if (!file.exists()) return null; 
         if (file.delete()) {
             HttpResponse resp = new HttpResponse();
             resp.setStatusCode(204, "No Content");
             return resp;
         } else {
-            return null; // internal error
+            return null; 
         }
     }
 
@@ -296,7 +302,7 @@ public class Router {
         return -1;
     }
 
-    private HttpResponse errorResponse(int code, String message, String sessionId, Session session) {
+    private HttpResponse errorResponse(int code, String message, String sessionId, Session session, ConfigLoader.RouteConfig route) {
         HttpResponse response = new HttpResponse();
         response.setStatusCode(code, message);
         
@@ -306,12 +312,12 @@ public class Router {
             if (f.exists() && f.isFile()) {
                 try {
                     response.setBody(Files.readAllBytes(f.toPath()));
-                    return finalize(response, sessionId, session);
+                    return finalize(response, sessionId, session, route);
                 } catch (IOException ignored) {}
             }
         }
         
         response.setBody("<h1>" + code + " " + message + "</h1>");
-        return finalize(response, sessionId, session);
+        return finalize(response, sessionId, session, route);
     }
 }
