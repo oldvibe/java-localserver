@@ -33,6 +33,40 @@ public class Router {
         com.localserver.utils.Session session = com.localserver.utils.Session.getOrCreate(sessionId);
         HttpResponse response = null;
 
+        // Login handling
+        if (request.getPath().equals("/login") && request.getMethod().equals("POST")) {
+            java.util.Map<String, String> params = request.getFormParams();
+            if ("admin".equals(params.get("username")) && "admin".equals(params.get("password"))) {
+                session.setAttribute("user", "admin");
+                response = new HttpResponse();
+                response.setStatusCode(302, "Found");
+                response.setHeader("Location", "/protected.html");
+                return finalizeResponse(response, sessionId, session);
+            } else {
+                response = errorResponse(401, "Unauthorized: Invalid credentials");
+                return finalizeResponse(response, sessionId, session);
+            }
+        }
+
+        // Logout handling
+        if (request.getPath().equals("/logout")) {
+            session.setAttribute("user", null);
+            response = new HttpResponse();
+            response.setStatusCode(302, "Found");
+            response.setHeader("Location", "/login.html");
+            return finalizeResponse(response, sessionId, session);
+        }
+
+        // Protected page check
+        if (request.getPath().equals("/protected.html")) {
+            if (session.getAttribute("user") == null) {
+                response = new HttpResponse();
+                response.setStatusCode(302, "Found");
+                response.setHeader("Location", "/login.html");
+                return finalizeResponse(response, sessionId, session);
+            }
+        }
+
         if (request.getPath().equals("/metrics")) {
             response = new HttpResponse();
             response.setHeader("Content-Type", "application/json");
@@ -113,11 +147,17 @@ public class Router {
             }
         }
 
+        return finalizeResponse(response, sessionId, session);
+    }
+
+    private HttpResponse finalizeResponse(HttpResponse response, String sessionId, com.localserver.utils.Session session) {
+        if (response == null) {
+            response = errorResponse(500, "Internal Server Error: No Response Generated");
+        }
         // Add session cookie if newly created or if we want to ensure it's there
         if (sessionId == null || !sessionId.equals(session.getId())) {
             response.addCookie(new com.localserver.utils.Cookie("LOCALSERVER_SESSION", session.getId()));
         }
-
         return response;
     }
 

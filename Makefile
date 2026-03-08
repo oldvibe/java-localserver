@@ -106,8 +106,9 @@ complex-test: setup-test-assets
 	}
 
 audit-test:
-	@chmod +x scripts/audit-test.sh
+	@chmod +x scripts/audit-test.sh scripts/final-test.sh
 	@./scripts/audit-test.sh
+	@./scripts/final-test.sh
 
 clean-test-assets:
 	rm -rf www/large-test/
