@@ -11,9 +11,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 
-/**
- * Module de logique serveur : decide comment repondre a une requete donnee.
- */
 public class Router {
     private static final Logger log = Logger.getLogger(Router.class);
     private final ConfigLoader.ServerConfig config;

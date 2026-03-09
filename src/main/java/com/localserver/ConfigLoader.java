@@ -20,7 +20,6 @@ import java.util.regex.Pattern;
 public class ConfigLoader {
     private static final Logger log = Logger.getLogger(ConfigLoader.class);
     
-    // Data Models — produits par les deux parsers
     public static class RouteConfig {
         public String path;
         public List<String> methods    = new ArrayList<>();
@@ -32,12 +31,11 @@ public class ConfigLoader {
         public String redirectTarget   = null;
         public Map<String, String> cgiHandlers = new LinkedHashMap<>();
 
-         // retourne vrai si cette route a au moins un CGI configure
+        
         public boolean hasCgi() {
             return !cgiHandlers.isEmpty();
         }
 
-        // retourne l'executable pour une extension donnee
         public String getCgiExecutable(String extension) {
             return cgiHandlers.get(extension);
         }
@@ -76,7 +74,6 @@ public class ConfigLoader {
     }
 
 
-    /// hady dyalyyyyyyyyy
     public static List<ServerConfig> load(String filePath) throws IOException {
         log.info("Loading configuration from: " + filePath);
 
@@ -222,18 +219,13 @@ public class ConfigLoader {
         endIdx[0] = i;
         return route;
     }
-
-    // hady kany loadConfig o rdetha loadJson flmerge smohaaat 🫣
-    /// hady dyaaalk nta Json wana config bl7a9 rah ghantl9aha chwiya mbdlaaa 
     
 
     private static List<ServerConfig> loadJson(String filePath) throws IOException {
         String content = new String(Files.readAllBytes(Paths.get(filePath)));
 
-        // Utiliser le parser JSON du teammate pour obtenir un objet Config
         Config rawConfig = parseJson(content);
 
-        // Convertir Config.ServerConfig → ConfigLoader.ServerConfig
         List<ServerConfig> servers = new ArrayList<>();
         for (Config.ServerConfig raw : rawConfig.servers) {
             servers.add(convertFromRaw(raw));
@@ -262,7 +254,6 @@ public class ConfigLoader {
             route.listing     = rr.listing;
             route.cgiHandlers = rr.cgi;
 
-            // Convertir le champ "redirection" du teammate
             // format : "301 /nouvelle-page" ou juste "/nouvelle-page" (302 par defaut)
             if (rr.redirection != null && !rr.redirection.isBlank()) {
                 String[] parts = rr.redirection.split("\\s+", 2);

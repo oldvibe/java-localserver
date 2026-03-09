@@ -10,15 +10,10 @@ public class RequestParser {
 
     private static final Logger log = Logger.getLogger(RequestParser.class);
 
-    // -------------------------------------------------------------------------
-    // Point d'entree unique
-    // -------------------------------------------------------------------------
-
+    /***************🌟 Point d'entree unique 🌟**************/
     /**
      * Parse une section headers brute (tout ce qui est avant \r\n\r\n)
-     * et retourne un HttpRequest structure.
-     *
-     * Retourne null si la requete est malformee.
+     * et retourne un HttpRequest structure
      */
     public static HttpRequest parse(String headerSection) {
         String[] lines = headerSection.split("\r\n");
@@ -42,16 +37,12 @@ public class RequestParser {
         return req;
     }
 
-    // -------------------------------------------------------------------------
-    // Etape 1 : Request Line
-    // -------------------------------------------------------------------------
-
+    /**********🌟 Etape1: Request Line 🌟***********/
     /**
      * Parse "GET /path?query HTTP/1.1"
-     *
      * Le split(" ", 3) est important :
-     * - sans le 3, un espace dans le path casserait tout
-     * - avec le 3, on obtient exactement [method, uri, version]
+     * - sans le 3 un espace dans le path casserait tout
+     * - avec le 3 on obtient exactement [method, uri, version]
      */
     private static boolean parseRequestLine(String line, HttpRequest req) {
         String[] parts = line.split(" ", 3);
@@ -80,15 +71,12 @@ public class RequestParser {
         return true;
     }
 
-    // -------------------------------------------------------------------------
-    // Etape 2 : Headers
-    // -------------------------------------------------------------------------
-
+    /**********🌟 Etape 2 : Headers 🌟***********/
     /**
      * Parse toutes les lignes de headers apres la request line.
      *
      * Format d'un header : "Nom: valeur"
-     * - Le nom est case-insensitive → on le met en lowercase
+     * - Le nom on le met en lowercase
      * - La valeur peut contenir des ":" (ex: Authorization: Bearer token:xyz)
      *   donc on split seulement sur le premier ":"
      */
@@ -96,8 +84,7 @@ public class RequestParser {
         for (int i = 1; i < lines.length; i++) {
             String line = lines[i];
 
-            // Ligne vide = fin des headers
-            if (line.isBlank()) break;
+            if (line.isBlank()) break; // fin des headers
 
             int colon = line.indexOf(':');
             if (colon == -1) {
@@ -112,26 +99,21 @@ public class RequestParser {
             // (comportement standard HTTP/1.1 pour les headers dupliques)
             req.headers.merge(name, value, (existing, newVal) -> existing + ", " + newVal);
 
-            // Gestion des cookies
             if (name.equals("cookie")) {
                 req.cookies.putAll(com.localserver.utils.Cookie.parse(value));
             }
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Etape 3 : Validation
-    // -------------------------------------------------------------------------
-
+    /**********🌟 Etape 3 : Validation 🌟***********/
     private static boolean validate(HttpRequest req) {
-        // Methodes supportees par notre serveur
         List<String> supported = Arrays.asList("GET", "POST", "DELETE", "HEAD");
 
         log.info("Validating method: " + req.method);
         if (!supported.contains(req.method)) {
             log.warn("Unsupported method: " + req.method);
             // On ne retourne pas false ici — on laisse ErrorHandler
-            // renvoyer un 405 avec le bon header Allow:
+            // renvoyer un 405 avec le bon header Allow
             // On marque juste dans la requete
             req.methodNotAllowed = true;
         }
@@ -151,10 +133,6 @@ public class RequestParser {
         return true;
     }
 
-    // -------------------------------------------------------------------------
-    // Body : chunked decoding
-    // -------------------------------------------------------------------------
-
     /**
      * Decode un body en Transfer-Encoding: chunked.
      *
@@ -166,6 +144,8 @@ public class RequestParser {
      *   0\r\n           ← chunk final de taille 0
      *   \r\n
      */
+
+    /**********🌟 Body : chunked decoding 🌟***********/
     public static byte[] decodeChunked(String raw) {
         StringBuilder result = new StringBuilder();
         int pos = 0;

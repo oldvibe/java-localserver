@@ -14,18 +14,11 @@ public class ResponseBuilder {
 
     private static final Logger log = Logger.getLogger(ResponseBuilder.class);
 
-    // Format de date requis par HTTP : "Sun, 01 Jan 2026 00:00:00 GMT"
     private static final DateTimeFormatter HTTP_DATE =
         DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'")
                          .withZone(ZoneOffset.UTC);
 
-    // -------------------------------------------------------------------------
-    // API publique — methodes de construction
-    // -------------------------------------------------------------------------
-
-    /**
-     * Reponse 200 OK avec un body.
-     */
+    // Reponse 200 OK avec un body
     public static ByteBuffer ok(byte[] body, String contentType, boolean keepAlive) {
         Map<String, String> headers = baseHeaders(keepAlive);
         headers.put("Content-Type",   contentType);
@@ -33,9 +26,7 @@ public class ResponseBuilder {
         return build(200, "OK", headers, body);
     }
 
-    /**
-     * Reponse de redirection (301 ou 302).
-     */
+    // Reponse de redirection (301 ou 302).
     public static ByteBuffer redirect(int code, String location) {
         String reason = code == 301 ? "Moved Permanently" : "Found";
         String bodyHtml =
@@ -120,9 +111,6 @@ public class ResponseBuilder {
         return buffer;
     }
 
-    // -------------------------------------------------------------------------
-    // Construction bas niveau
-    // -------------------------------------------------------------------------
 
     /**
      * Assemble la reponse HTTP complete en bytes.
@@ -148,7 +136,7 @@ public class ResponseBuilder {
             sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\r\n");
         }
 
-        // Ligne vide obligatoire separant headers et body
+        // Ligne vide separant headers et body
         sb.append("\r\n");
 
         byte[] headerBytes = sb.toString().getBytes(StandardCharsets.UTF_8);
@@ -166,7 +154,6 @@ public class ResponseBuilder {
 
     /**
      * Headers communs a toutes les reponses.
-     * LinkedHashMap pour garder l'ordre d'insertion.
      */
     private static Map<String, String> baseHeaders(boolean keepAlive) {
         Map<String, String> headers = new LinkedHashMap<>();
@@ -176,9 +163,7 @@ public class ResponseBuilder {
         return headers;
     }
 
-    // -------------------------------------------------------------------------
     // Utilitaires
-    // -------------------------------------------------------------------------
 
     private static byte[] loadErrorPage(int code, ConfigLoader.ServerConfig config) {
         String pagePath = config.errorPages.get(code);
