@@ -14,15 +14,12 @@ import java.nio.channels.*;
 import java.util.*;
 
 public class Server {
-    // Le Selector — le coeur de l'event loop
-    // Il surveille tous les channels (serveur + clients)
-    private Selector selector;
-    private java.util.Map<Integer, java.util.List<Router>> portRouters = new java.util.HashMap<>();
+    
+    private Selector selector; // Il surveille tous les channels (serveur + clients)
     private static final Logger log = Logger.getLogger(Server.class);
     
-    private static final long TIMEOUT_MS  = 30_000; 
-    // Taille du buffer de lecture — 8KB par lecture
-    private static final int BUFFER_SIZE = 8192;
+    // buffer de lecture : 8KB par lecture
+    private static final int BUFFER_SIZE = 8192; 
 
     // La config de ce serveur (host, ports, routes, etc.)
     private final ConfigLoader.ServerConfig config;
@@ -36,7 +33,6 @@ public class Server {
     // Ex: si config.ports = [8080, 8081], on aura 2 ServerSocketChannels
     private final List<ServerSocketChannel> serverChannels = new ArrayList<>();
 
-    // Flag pour arreter proprement le serveur
     private volatile boolean running = false;
 
 
@@ -64,31 +60,26 @@ public class Server {
         }
     }
 
-    // Demarrage du serveur
-
-    /**
-     * Initialise le Selector, ouvre un ServerSocketChannel par port,
-     * et lance l'event loop.
-     */
+    // Demarrage du serveur Initialise le Selector, ouvre un ServerSocketChannel par port, et lance l'event loop
     public void start() throws IOException {
 
         selector = Selector.open();
 
-        // Si portConfigs est vide (constructeur simple), on le remplit
+        // Si portConfigs est vide => on le remplit
         if (portConfigs.isEmpty()) {
             for (int port : config.ports) {
                 portConfigs.computeIfAbsent(port, k -> new ArrayList<>()).add(config);
             }
         }
 
-        // On bind chaque port independamment.
+        // On bind chaque port independamment
         // Si un port echoue, on log et on continue — les autres ports restent actifs.
         for (int port : portConfigs.keySet()) {
             try {
                 bindPort(port);
             } catch (IOException e) {
                 log.error("Failed to bind port " + port + " — skipping: " + e.getMessage());
-                // On continue, pas de crash total
+                // On continue
             }
         }
 
@@ -116,8 +107,8 @@ public class Server {
     }
 
     /**
-     * Boucle principale du serveur.
-     * Tourne indefiniment, traite les evenements au fur et a mesure.
+     * Boucle principale du serveur
+     * Tourne indefiniment, traite les evenements au fur et a mesure
      */
     private void eventLoop() throws IOException {
 
@@ -239,7 +230,6 @@ public class Server {
 
         if (clientChannel == null) return; // ne devrait pas arriver
 
-        // Le channel client doit aussi etre non-bloquant
         clientChannel.configureBlocking(false);
 
         // Selectionner la bonne config pour ce port
@@ -288,30 +278,7 @@ public class Server {
         return configs.get(0);
     }
 
-    // /**
-    //  * OP_READ : un client a envoye des donnees, on peut les lire.
-    //  */
-    // private void handleRead(SelectionKey key, ByteBuffer buffer) throws IOException {
-    //     SocketChannel clientChannel = (SocketChannel) key.channel();
-
-    //     // Recuperer le handler associe a ce client
-    //     ConnectionHandler handler = (ConnectionHandler) key.attachment();
-
-    //     // Preparer le buffer pour une nouvelle lecture
-    //     buffer.clear();
-
-    //     // Lire les donnees disponibles
-    //     int bytesRead = clientChannel.read(buffer);
-
-    //     if (bytesRead == -1) {
-    //         // -1 = le client a ferme la connexion proprement
-    //         log.debug("Client closed connection: " + clientChannel.getRemoteAddress());
-    //         closeChannel(key);
-    //         return;
-        // -------------------------------------------------------------------------
-    // Utilitaires
-    // -------------------------------------------------------------------------
-
+    /***************🌟 Close Channel 🌟**************/
     private void closeChannel(SelectionKey key) {
         if (key.attachment() instanceof ConnectionHandler) {
             Metrics.activeConnections.decrementAndGet();
@@ -323,9 +290,8 @@ public class Server {
         }
     }
 
-    /**
-     * Arret propre du serveur.
-     */
+    
+    /***************🌟 Stop Server 🌟**************/
     public void stop() {
         log.info("Stopping server...");
         running = false;
@@ -341,8 +307,7 @@ public class Server {
     }
 
     /**
-     * Parcourt toutes les cles actives et ferme celles qui ont depasse
-     * le timeout d'inactivite.
+     * Parcourt toutes les cles actives et ferme celles qui ont depasse le timeout d'inactivite.
      * Appele pendant les periodes idle de l'event loop.
      */
     private void checkTimeouts() {

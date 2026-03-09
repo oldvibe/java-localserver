@@ -1,7 +1,6 @@
 package com.localserver;
 
 import com.localserver.utils.Logger;
-import com.localserver.utils.Metrics;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Module de gestion de connexion (Peer's module).
+ * Module de gestion de connexion.
  * Responsable de la lecture des octets, du parsing de la requete,
  * et de l'ecriture de la reponse.
  * Delegue la logique de decision au Router.
@@ -54,10 +53,7 @@ public class ConnectionHandler {
         return configs.get(0);
     }
 
-    // -------------------------------------------------------------------------
     // Phase READING
-    // -------------------------------------------------------------------------
-
     public boolean process(ByteBuffer buffer) throws IOException {
         if (state == State.WRITING) {
             buffer.position(buffer.limit());
@@ -187,9 +183,7 @@ public class ConnectionHandler {
         return ResponseBuilder.fromResponse(response, keepAlive);
     }
 
-    // -------------------------------------------------------------------------
     // Phase WRITING
-    // -------------------------------------------------------------------------
 
     public boolean writeResponse(SocketChannel ch) throws IOException {
         if (responseBuffer == null) return true;
@@ -199,10 +193,8 @@ public class ConnectionHandler {
         return done;
     }
 
-    // -------------------------------------------------------------------------
-    // Utilities
-    // -------------------------------------------------------------------------
 
+    /***************🌟 Should Keep Alive 🌟**************/
     public boolean shouldKeepAlive() { return keepAlive; }
 
     public boolean isTimedOut() {

@@ -9,10 +9,10 @@ import java.time.format.DateTimeFormatter;
 public class Logger {
 
     public enum Level {
-        DEBUG,   // details internes utiles pendant le developpement
-        INFO,    // evenements normaux
-        WARN,    // quelque chose d'anormal mais pas fatal
-        ERROR    // quelque chose a vraiment mal tourne
+        DEBUG,   
+        INFO,   
+        WARN,   
+        ERROR 
     }
 
     private static Level currentLevel = Level.DEBUG;
@@ -32,17 +32,11 @@ public class Logger {
         return new Logger(clazz.getSimpleName());
     }
 
-    /**
-     * Configure le niveau minimum de log.
-     * Appele une fois au demarrage depuis Main.java
-     */
     public static void setLevel(Level level) {
         currentLevel = level;
     }
 
-    // Active l'ecriture des logs dans un fichier.
-    // Appele une fois au demarrage si on veut persister les logs
-
+    // Active l'ecriture des logs dans un fichier
     public static void enableFileLogging(String filePath) {
         try {
             fileWriter = new PrintWriter(new FileWriter(filePath, true), true);
